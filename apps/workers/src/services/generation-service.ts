@@ -75,17 +75,40 @@ interface GlobalData {
   header?: string;
 }
 
+interface CustomValues {
+  [varName: string]: string;
+}
+
+interface HighlightMapping {
+  highlightProductIds: string[];
+  normalProductIds: string[];
+}
+
 class VariableInjector {
-  inject(templateData: TemplateData, products: Product[], globalData: GlobalData = {}): TemplateData {
+  inject(
+    templateData: TemplateData,
+    products: Product[],
+    globalData: GlobalData = {},
+    customValues: CustomValues = {},
+    highlightMapping?: HighlightMapping
+  ): TemplateData {
     const injected: TemplateData = {
       background: templateData.background,
-      elements: templateData.elements.map((element) => this.injectElement(element, products, globalData)),
+      elements: templateData.elements.map((element) => 
+        this.injectElement(element, products, globalData, customValues, highlightMapping)
+      ),
     };
 
     return injected;
   }
 
-  private injectElement(element: TemplateElement, products: Product[], globalData: GlobalData): TemplateElement {
+  private injectElement(
+    element: TemplateElement,
+    products: Product[],
+    globalData: GlobalData,
+    customValues: CustomValues,
+    highlightMapping?: HighlightMapping
+  ): TemplateElement {
     const injected = { ...element };
 
     if (element.type === 'text') {
@@ -105,6 +128,12 @@ class VariableInjector {
         content = content.replace(/{{header}}/g, globalData.header);
       }
 
+      // Substituir variáveis customizadas
+      Object.entries(customValues).forEach(([varName, value]) => {
+        const regex = new RegExp(`{{${varName}}}`, 'g');
+        content = content.replace(regex, value || '');
+      });
+
       (injected as any).content = content;
     }
 
@@ -116,6 +145,7 @@ class VariableInjector {
       }, 'Processing image element');
       
       if (element.variable) {
+        // Variáveis padrão de produtos
         products.forEach((product, index) => {
           const n = index + 1;
           if (element.variable === `{{imagem_produto_${n}}}`) {
@@ -127,6 +157,15 @@ class VariableInjector {
             (injected as any).src = product.imagePath || null;
           }
         });
+
+        // Variáveis customizadas de imagem
+        const match = element.variable.match(/\{\{([a-zA-Z0-9_]+)\}\}/);
+        if (match) {
+          const varName = match[1];
+          if (customValues[varName]) {
+            (injected as any).src = customValues[varName];
+          }
+        }
       }
     }
 
@@ -258,7 +297,7 @@ class TemplateRenderer {
 // ============================================
 
 class ImageGenerator {
-  private browser: puppeteer.Browser | null = null;
+  private browser: import('puppeteer').Browser | null = null;
 
   async initialize() {
     if (!this.browser) {
@@ -329,6 +368,12 @@ interface GenerateEncarteInput {
     validUntil?: string;
     header?: string;
   };
+  allocations?: Array<{
+    templateId: string;
+    productIds: string[];
+    customValues?: Record<string, string>;
+    highlightProductIds?: string[];
+  }>;
 }
 
 export class GenerationService {
@@ -380,24 +425,50 @@ export class GenerationService {
       // Converter URLs relativas para absolutas para o Puppeteer poder carregar
       const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
       
-      const divisionResult = this.divider.divide(
-        products.map((p) => {
-          let imagePath = (p.images[0]?.urls as any)?.optimized || null;
-          // Se a URL for relativa, converter para absoluta
-          if (imagePath && imagePath.startsWith('/')) {
-            imagePath = `${baseUrl}${imagePath}`;
-          }
-          return {
-            id: p.id,
-            name: p.name,
-            price: Number(p.price),
-            imagePath,
-          };
-        }),
-        templates as any
-      );
+      const productsWithImages = products.map((p) => {
+        let imagePath = (p.images[0]?.urls as any)?.optimized || null;
+        if (imagePath && imagePath.startsWith('/')) {
+          imagePath = `${baseUrl}${imagePath}`;
+        }
+        return {
+          id: p.id,
+          name: p.name,
+          price: Number(p.price),
+          imagePath,
+        };
+      });
 
-      const { allocations, unprocessedProducts } = divisionResult;
+      let allocations;
+      let unprocessedProducts: Product[] = [];
+
+      if (input.allocations && input.allocations.length > 0) {
+        // Usar allocations fornecidas pelo frontend
+        allocations = input.allocations.map((alloc: any) => {
+          const template = templates.find((t: any) => t.id === alloc.templateId);
+          const allocProducts = productsWithImages.filter((p: any) => alloc.productIds.includes(p.id));
+          
+          return {
+            template,
+            products: allocProducts,
+            customValues: alloc.customValues || {},
+            highlightMapping: {
+              highlightProductIds: alloc.highlightProductIds || [],
+              normalProductIds: allocProducts
+                .filter((p: any) => !alloc.highlightProductIds?.includes(p.id))
+                .map((p: any) => p.id),
+            },
+          };
+        });
+      } else {
+        // Fallback: divisão automática
+        const divisionResult = this.divider.divide(productsWithImages, templates as any);
+        allocations = divisionResult.allocations.map(alloc => ({
+          ...alloc,
+          customValues: {},
+          highlightMapping: undefined,
+        }));
+        unprocessedProducts = divisionResult.unprocessedProducts;
+      }
 
       logger.info({ 
         allocations: allocations.length, 
@@ -417,6 +488,12 @@ export class GenerationService {
 
       for (let i = 0; i < allocations.length; i++) {
         const allocation = allocations[i];
+        
+        if (!allocation.template) {
+          logger.error({ index: i }, 'Template not found for allocation');
+          continue;
+        }
+        
         const progress = Math.round(((i + 1) / allocations.length) * 100);
 
         logger.info({ 
@@ -428,7 +505,9 @@ export class GenerationService {
         const injectedData = this.injector.inject(
           allocation.template.data as any,
           allocation.products,
-          input.globalData
+          input.globalData,
+          allocation.customValues,
+          allocation.highlightMapping
         );
 
         // Converter URL do background se for relativa

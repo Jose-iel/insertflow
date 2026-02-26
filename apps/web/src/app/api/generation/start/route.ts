@@ -16,6 +16,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
+    if (body.allocations && !Array.isArray(body.allocations)) {
+      return NextResponse.json({ error: 'Invalid allocations format' }, { status: 400 });
+    }
+
     // Criar registro do job no banco
     const generationJob = await prisma.generationJob.create({
       data: {
@@ -28,6 +32,7 @@ export async function POST(req: Request) {
         metadata: {
           productIds: body.productIds,
           globalData: body.globalData,
+          allocations: body.allocations,
         },
       },
     });
@@ -41,6 +46,7 @@ export async function POST(req: Request) {
       format: body.format,
       productIds: body.productIds,
       globalData: body.globalData,
+      allocations: body.allocations,
     });
 
     console.log('[Generation API] Job added to queue:', job.id, 'DB Job:', generationJob.id);

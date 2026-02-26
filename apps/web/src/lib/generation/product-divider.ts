@@ -29,28 +29,31 @@ export class ProductDivider {
     // Ordenar templates por productSlots (maior primeiro)
     const sortedTemplates = [...templates].sort((a, b) => b.productSlots - a.productSlots);
 
-    // Garantir que existe template de 1 produto (fallback)
-    const hasSingleSlot = sortedTemplates.some((t) => t.productSlots === 1);
-    if (!hasSingleSlot) {
-      throw new Error('Templates must include at least one with 1 product slot');
-    }
-
     const allocations: EncarteAllocation[] = [];
     const remaining = [...products];
 
     while (remaining.length > 0) {
-      // Encontrar maior template que cabe
-      const template =
-        sortedTemplates.find((t) => t.productSlots <= remaining.length) ||
-        sortedTemplates[sortedTemplates.length - 1]; // fallback para menor
-
-      // Alocar produtos
-      const allocated = remaining.splice(0, template.productSlots);
-
-      allocations.push({
-        template,
-        products: allocated,
-      });
+      // Encontrar maior template que cabe nos produtos restantes
+      const template = sortedTemplates.find((t) => t.productSlots <= remaining.length);
+      
+      if (!template) {
+        // Se nenhum template cabe, usar o menor disponível
+        const smallestTemplate = sortedTemplates[sortedTemplates.length - 1];
+        const allocated = remaining.splice(0, smallestTemplate.productSlots);
+        
+        allocations.push({
+          template: smallestTemplate,
+          products: allocated,
+        });
+      } else {
+        // Alocar produtos no template que cabe
+        const allocated = remaining.splice(0, template.productSlots);
+        
+        allocations.push({
+          template,
+          products: allocated,
+        });
+      }
     }
 
     return allocations;

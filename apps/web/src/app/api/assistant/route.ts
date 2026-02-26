@@ -143,25 +143,42 @@ Define o fundo do template:
 
 Variáveis são textos especiais que serão substituídos pelos dados reais dos produtos na geração.
 
-**Variáveis de texto:**
+**Variáveis padrão de produtos:**
 - {{nome_produto_1}} → Nome do produto 1
 - {{nome_produto_2}} → Nome do produto 2
 - {{preco_produto_1}} → Preço do produto 1 (apenas o valor, ex: "12,99")
 - {{preco_produto_2}} → Preço do produto 2
+- {{imagem_produto_1}} → Imagem do produto 1 (para elementos de imagem)
+- {{imagem_produto_2}} → Imagem do produto 2 (para elementos de imagem)
+
+**Variáveis customizadas:**
+Você pode criar suas próprias variáveis personalizadas! Basta usar o formato {{nome_da_variavel}} em qualquer elemento de texto ou imagem.
+
+Exemplos de variáveis customizadas:
+- {{promocao_titulo}} → Para títulos personalizados
+- {{data_validade}} → Para data de validade da promoção
+- {{logo_marca}} → Para logo de uma marca específica (em elementos de imagem)
+- {{telefone}} → Para número de telefone
+- {{endereco}} → Para endereço da loja
+
+**Como usar variáveis customizadas:**
+1. No editor, crie um elemento de texto ou imagem
+2. Use o formato {{nome_da_variavel}}
+3. Na hora de gerar, você será solicitado a preencher o valor dessa variável
+4. Para variáveis de imagem, você pode fazer upload de uma imagem específica
 
 **Variáveis de imagem:**
-Para elementos de imagem, selecione o elemento e no painel de propriedades escolha:
-- "Imagem Produto 1" → Será substituída pela foto do produto 1
-- "Imagem Produto 2" → Será substituída pela foto do produto 2
-- E assim por diante...
+Para elementos de imagem, você pode:
+- Usar variáveis padrão: Selecione "Imagem Produto 1", "Imagem Produto 2", etc.
+- Usar variáveis customizadas: Digite {{nome_da_imagem}} e faça upload na geração
 
 **IMPORTANTE sobre preços:**
 - A variável {{preco_produto_1}} retorna APENAS o valor numérico (ex: "12,99")
 - O símbolo "R$" deve ser um texto FIXO no template, não faz parte da variável
 - Exemplo: Crie um texto "R$" fixo e ao lado um texto com {{preco_produto_1}}
 
-**Exemplo de template de 2 produtos:**
-- Texto fixo: "OFERTA DA SEMANA"
+**Exemplo de template de 2 produtos com variáveis customizadas:**
+- Texto com variável customizada: {{promocao_titulo}} → "SUPER OFERTA"
 - Imagem com variável: Imagem Produto 1
 - Texto com variável: {{nome_produto_1}}
 - Texto fixo: "R$"
@@ -170,23 +187,39 @@ Para elementos de imagem, selecione o elemento e no painel de propriedades escol
 - Texto com variável: {{nome_produto_2}}
 - Texto fixo: "R$"
 - Texto com variável: {{preco_produto_2}}
+- Texto com variável customizada: {{data_validade}} → "Válido até 31/12"
 
 ---
 
 ### ⚡ GERAR ENCARTES
 
-**Como funciona?**
+**Novo fluxo em 2 etapas:**
+
+**Etapa 1 - Seleção:**
 1. Acesse Sidebar > Gerar Encartes
 2. Selecione a Pasta (ex: "Mercado Maré")
 3. Selecione o Formato (Feed ou Stories)
 4. Selecione os Produtos que deseja incluir
-5. Clique em "Gerar Encartes"
+5. Clique em "Continuar"
 
-**O que acontece na geração?**
-O sistema pega os produtos selecionados e distribui nos templates disponíveis:
+**Etapa 2 - Configuração:**
+Após clicar em "Continuar", o sistema calcula a divisão dos produtos entre os templates e mostra:
+
+- **Divisão de produtos**: Como os produtos foram distribuídos entre os templates
+- **Variáveis customizadas**: Se o template tiver variáveis personalizadas, você pode preencher os valores
+  - Variáveis de texto: Digite o valor desejado
+  - Variáveis de imagem: Faça upload da imagem
+- **Produtos destaque**: Se o template tiver slots de destaque, você pode marcar quais produtos devem aparecer em destaque
+  - Exemplo: Template com 6 produtos e 2 slots de destaque → marque 2 produtos para destacar
+
+Depois de configurar tudo, clique em "Gerar Encartes" para iniciar o processamento.
+
+**Como funciona a divisão automática?**
+O sistema pega os produtos selecionados e distribui nos templates disponíveis de forma inteligente:
 - Se você tem 10 produtos e um template de 4 slots → 3 encartes (4+4+2)
 - Se você tem 6 produtos e um template de 6 slots → 1 encarte
 - Se você tem 12 produtos e templates de 4 e 6 slots → o sistema escolhe a melhor combinação
+- O sistema usa templates maiores primeiro para otimizar o número de encartes
 
 **Histórico de gerações:**
 - Mostra todas as gerações realizadas
@@ -196,7 +229,7 @@ O sistema pega os produtos selecionados e distribui nos templates disponíveis:
 
 **Download:**
 - Clique no botão de download para baixar o encarte em PNG
-- A imagem está em alta resolução (2x) para impressão
+- A imagem está em alta resolução e otimizada para redes sociais
 
 ---
 
@@ -209,6 +242,14 @@ O sistema pega os produtos selecionados e distribui nos templates disponíveis:
 1. Acesse Sidebar > Imagens
 2. Arraste as imagens ou clique para selecionar
 3. As imagens são otimizadas automaticamente
+
+**Otimização automática:**
+Todas as imagens enviadas são automaticamente otimizadas:
+- **Versão otimizada**: Redimensionada para 800x900 pixels com fundo branco
+- **Versão thumbnail**: 200x200 pixels para visualização rápida
+- **Versão original**: Mantida para backup
+
+A versão otimizada (800x900) é a que será usada nos encartes gerados, garantindo qualidade e tamanho adequado.
 
 **Imagens de background:**
 - Envie junto com as imagens de produtos
@@ -266,6 +307,18 @@ R: Verifique se você configurou a variável de imagem no elemento. Selecione o 
 
 **P: Por que o preço aparece com "R$" duplicado?**
 R: A variável {{preco_produto_1}} retorna apenas o valor. Se você colocou "R$ {{preco_produto_1}}" no texto, o R$ já está lá. Não precisa adicionar outro.
+
+**P: Como funcionam as variáveis customizadas?**
+R: Basta usar o formato {{nome_da_variavel}} no template. Na hora de gerar, você será solicitado a preencher o valor. Funciona para texto e imagens!
+
+**P: O que são produtos destaque?**
+R: Alguns templates podem ter slots especiais para produtos em destaque (ex: produtos maiores, em posição de destaque). Na etapa de configuração da geração, você pode escolher quais produtos devem aparecer nesses slots.
+
+**P: Posso deixar uma variável customizada em branco?**
+R: Sim! Se você não preencher uma variável customizada, ela aparecerá em branco no encarte (sem erro).
+
+**P: As imagens enviadas são redimensionadas?**
+R: Sim! Todas as imagens são automaticamente otimizadas para 800x900 pixels com fundo branco, garantindo qualidade e tamanho adequado para os encartes.
 
 **P: Posso usar o mesmo produto em vários encartes?**
 R: Sim! Produtos são reutilizáveis. Você pode selecionar o mesmo produto quantas vezes quiser.

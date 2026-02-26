@@ -136,8 +136,8 @@ const optimizedBuffer = await sharp(originalBuffer)
 ### Critérios de Sucesso:
 
 #### Verificação Automatizada:
-- [ ] Type checking passa: `npm run typecheck`
-- [ ] Build completa: `npm run build`
+- [x] Type checking passa: `npm run typecheck`
+- [x] Build completa: `npm run build`
 
 #### Verificação Manual:
 - [ ] Upload de imagem 1200x800 (landscape) → resultado 800x600 centralizado em 800x900 com padding branco top/bottom
@@ -371,14 +371,14 @@ describe('VariableDetector', () => {
 ### Critérios de Sucesso:
 
 #### Verificação Automatizada:
-- [ ] Testes unitários passam: `npm test variable-detector`
-- [ ] Type checking passa: `npm run typecheck`
-- [ ] Build completa: `npm run build`
+- [x] Testes unitários passam: `npm test variable-detector`
+- [x] Type checking passa: `npm run typecheck`
+- [x] Build completa: `npm run build`
 
 #### Verificação Manual:
-- [ ] Função detecta variáveis customizadas corretamente
-- [ ] Ignora variáveis padrão
-- [ ] Não duplica variáveis
+- [x] Função detecta variáveis customizadas corretamente
+- [x] Ignora variáveis padrão
+- [x] Não duplica variáveis
 
 **Nota de Implementação**: Após completar esta fase e toda verificação automatizada passar, pause aqui para confirmação manual do humano antes de prosseguir para a próxima fase.
 
@@ -787,9 +787,9 @@ export async function POST(req: Request) {
 ### Critérios de Sucesso:
 
 #### Verificação Automatizada:
-- [ ] Type checking passa: `npm run typecheck`
-- [ ] Linting passa: `npm run lint`
-- [ ] Build completa: `npm run build`
+- [x] Type checking passa: `npm run typecheck`
+- [x] Linting passa: `npm run lint`
+- [x] Build completa: `npm run build`
 
 #### Verificação Manual:
 - [ ] Selecionar produtos e clicar "Continuar" mostra tela de configuração
@@ -1012,9 +1012,9 @@ async generate(jobData: any) {
 ### Critérios de Sucesso:
 
 #### Verificação Automatizada:
-- [ ] Type checking passa: `npm run typecheck`
-- [ ] Build completa: `npm run build`
-- [ ] Testes unitários passam: `npm test`
+- [x] Type checking passa: `npm run typecheck`
+- [x] Build completa: `npm run build`
+- [x] Testes unitários passam: `npm test`
 
 #### Verificação Manual:
 - [ ] Gerar encarte com variável customizada de texto → valor aparece no encarte

@@ -3,12 +3,23 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@insertflow/ui';
 import { useRouter } from 'next/navigation';
-import { Search, Pencil, Check, X, Zap } from 'lucide-react';
+import { Search, Pencil, Check, X, Zap, Upload } from 'lucide-react';
+import { VariableDetector, CustomVariable } from '@/lib/generation/variable-detector';
+import { ProductDivider } from '@/lib/generation/product-divider';
 
 interface Product {
   id: string;
   name: string;
   price: number;
+  imagePath: string | null;
+}
+
+interface TemplateAllocation {
+  template: any;
+  productIds: string[];
+  customVariables: CustomVariable[];
+  customValues: Record<string, string>;
+  highlightProductIds: string[];
 }
 
 export function GenerationForm() {
@@ -23,6 +34,9 @@ export function GenerationForm() {
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editPrice, setEditPrice] = useState('');
+  const [step, setStep] = useState<'select' | 'configure'>('select');
+  const [allocations, setAllocations] = useState<TemplateAllocation[]>([]);
+  const [uploadingVar, setUploadingVar] = useState<string | null>(null);
 
   useEffect(() => {
     fetchFolders();
@@ -41,9 +55,56 @@ export function GenerationForm() {
     setProducts(data.products || []);
   }
 
-  async function handleGenerate() {
+  async function calculateAllocations() {
     if (!selectedFolder || selectedProducts.length === 0) {
       alert('Selecione uma pasta e pelo menos um produto');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/folders/${selectedFolder}/templates?format=${selectedFormat}`);
+      const data = await res.json();
+      const templates = data.templates || [];
+
+      console.log('Templates encontrados:', templates);
+
+      if (templates.length === 0) {
+        alert('Nenhum template encontrado nesta pasta para o formato selecionado');
+        return;
+      }
+
+      const selectedProductsData = products.filter(p => selectedProducts.includes(p.id));
+      console.log('Produtos selecionados:', selectedProductsData);
+
+      const divider = new ProductDivider();
+      const rawAllocations = divider.divide(selectedProductsData, templates);
+
+      console.log('Alocações calculadas:', rawAllocations);
+
+      const detector = new VariableDetector();
+      const templateAllocations: TemplateAllocation[] = rawAllocations.map((alloc) => {
+        const customVariables = detector.detect(alloc.template.data);
+        
+        return {
+          template: alloc.template,
+          productIds: alloc.products.map(p => p.id),
+          customVariables,
+          customValues: {},
+          highlightProductIds: [],
+        };
+      });
+
+      setAllocations(templateAllocations);
+      setStep('configure');
+    } catch (error: any) {
+      console.error('Failed to calculate allocations:', error);
+      alert(`Erro ao calcular divisão de produtos: ${error.message || error}`);
+    }
+  }
+
+  async function handleGenerate() {
+    if (step === 'select') {
+      await calculateAllocations();
       return;
     }
 
@@ -57,6 +118,12 @@ export function GenerationForm() {
           folderId: selectedFolder,
           format: selectedFormat,
           productIds: selectedProducts,
+          allocations: allocations.map(alloc => ({
+            templateId: alloc.template.id,
+            productIds: alloc.productIds,
+            customValues: alloc.customValues,
+            highlightProductIds: alloc.highlightProductIds,
+          })),
         }),
       });
 
@@ -65,6 +132,9 @@ export function GenerationForm() {
       if (res.ok) {
         alert(`Geração iniciada! Job ID: ${data.jobId}`);
         router.refresh();
+        setStep('select');
+        setAllocations([]);
+        setSelectedProducts([]);
       } else {
         alert(`Erro: ${data.error}`);
       }
@@ -74,6 +144,70 @@ export function GenerationForm() {
     } finally {
       setGenerating(false);
     }
+  }
+
+  async function handleVariableImageUpload(allocIndex: number, varName: string, file: File) {
+    setUploadingVar(`${allocIndex}-${varName}`);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const res = await fetch('/api/images/upload-temp', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        setAllocations(allocations.map((alloc, i) => 
+          i === allocIndex 
+            ? { ...alloc, customValues: { ...alloc.customValues, [varName]: data.url } }
+            : alloc
+        ));
+      } else {
+        alert('Erro ao fazer upload da imagem');
+      }
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+      alert('Erro ao fazer upload');
+    } finally {
+      setUploadingVar(null);
+    }
+  }
+
+  function updateCustomValue(allocIndex: number, varName: string, value: string) {
+    setAllocations(allocations.map((alloc, i) => 
+      i === allocIndex 
+        ? { ...alloc, customValues: { ...alloc.customValues, [varName]: value } }
+        : alloc
+    ));
+  }
+
+  function toggleHighlightProduct(allocIndex: number, productId: string) {
+    setAllocations(allocations.map((alloc, i) => {
+      if (i !== allocIndex) return alloc;
+      
+      const isSelected = alloc.highlightProductIds.includes(productId);
+      const maxHighlights = alloc.template.highlightSlots || 0;
+      
+      if (isSelected) {
+        return {
+          ...alloc,
+          highlightProductIds: alloc.highlightProductIds.filter(id => id !== productId),
+        };
+      } else {
+        if (alloc.highlightProductIds.length >= maxHighlights) {
+          alert(`Este template suporta no máximo ${maxHighlights} produto(s) em destaque`);
+          return alloc;
+        }
+        return {
+          ...alloc,
+          highlightProductIds: [...alloc.highlightProductIds, productId],
+        };
+      }
+    }));
   }
 
   function selectAllFiltered() {
@@ -284,13 +418,162 @@ export function GenerationForm() {
           </div>
         </div>
 
+        {step === 'configure' && allocations.length > 0 && (
+          <div className="space-y-6 border-t pt-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Configuração dos Encartes</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setStep('select');
+                  setAllocations([]);
+                }}
+              >
+                ← Voltar
+              </Button>
+            </div>
+
+            <p className="text-sm text-gray-600">
+              Seus {selectedProducts.length} produtos serão divididos em {allocations.length} encarte(s). 
+              Configure cada um abaixo:
+            </p>
+
+            {allocations.map((alloc, allocIndex) => (
+              <div key={allocIndex} className="border rounded-lg p-4 bg-gray-50">
+                <h4 className="font-medium mb-3">
+                  Encarte {allocIndex + 1} - {alloc.template.name}
+                </h4>
+                
+                <p className="text-sm text-gray-600 mb-4">
+                  {alloc.productIds.length} produto(s): {alloc.productIds.map(id => 
+                    products.find(p => p.id === id)?.name
+                  ).join(', ')}
+                </p>
+
+                {alloc.template.highlightSlots > 0 && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded">
+                    <label className="block text-sm font-medium mb-2">
+                      Produtos em Destaque ({alloc.highlightProductIds.length}/{alloc.template.highlightSlots})
+                    </label>
+                    <p className="text-xs text-gray-600 mb-2">
+                      Selecione até {alloc.template.highlightSlots} produto(s) para posições de destaque:
+                    </p>
+                    <div className="space-y-1">
+                      {alloc.productIds.map(productId => {
+                        const product = products.find(p => p.id === productId);
+                        if (!product) return null;
+                        
+                        return (
+                          <label key={productId} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={alloc.highlightProductIds.includes(productId)}
+                              onChange={() => toggleHighlightProduct(allocIndex, productId)}
+                              className="rounded text-amber-600"
+                            />
+                            <span className="text-sm">{product.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {alloc.customVariables.length > 0 && (
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium">
+                      Campos Customizados
+                    </label>
+                    
+                    {alloc.customVariables.map((variable) => (
+                      <div key={variable.name}>
+                        <label className="block text-sm text-gray-700 mb-1">
+                          {variable.placeholder}
+                        </label>
+                        
+                        {variable.type === 'text' ? (
+                          <input
+                            type="text"
+                            value={alloc.customValues[variable.name] || ''}
+                            onChange={(e) => updateCustomValue(allocIndex, variable.name, e.target.value)}
+                            placeholder={`Digite ${(variable.placeholder || variable.name).toLowerCase()}`}
+                            className="w-full rounded border px-3 py-2 text-sm"
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleVariableImageUpload(allocIndex, variable.name, file);
+                              }}
+                              className="hidden"
+                              id={`upload-${allocIndex}-${variable.name}`}
+                              disabled={uploadingVar === `${allocIndex}-${variable.name}`}
+                            />
+                            <label
+                              htmlFor={`upload-${allocIndex}-${variable.name}`}
+                              className="flex items-center gap-2 px-3 py-2 bg-white border rounded cursor-pointer hover:bg-gray-50 text-sm"
+                            >
+                              <Upload className="h-4 w-4" />
+                              <span>
+                                {uploadingVar === `${allocIndex}-${variable.name}` 
+                                  ? 'Enviando...' 
+                                  : alloc.customValues[variable.name]
+                                  ? 'Trocar imagem'
+                                  : 'Escolher imagem'
+                                }
+                              </span>
+                            </label>
+                            
+                            {alloc.customValues[variable.name] && (
+                              <button
+                                onClick={() => updateCustomValue(allocIndex, variable.name, '')}
+                                className="p-2 text-red-600 hover:text-red-800"
+                                title="Remover imagem"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        )}
+                        
+                        {!alloc.customValues[variable.name] && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Opcional - deixe vazio para gerar em branco
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {alloc.customVariables.length === 0 && alloc.template.highlightSlots === 0 && (
+                  <p className="text-sm text-gray-500 italic">
+                    Nenhuma configuração adicional necessária para este template
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         <Button 
           onClick={handleGenerate} 
           disabled={generating || selectedProducts.length === 0 || !selectedFolder} 
           className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-3 text-base font-medium"
         >
           <Zap className="h-5 w-5" />
-          <span>{generating ? 'Gerando...' : `Gerar ${selectedProducts.length} Encarte(s)`}</span>
+          <span>
+            {generating 
+              ? 'Gerando...' 
+              : step === 'select'
+              ? `Continuar com ${selectedProducts.length} Produto(s)`
+              : `Gerar ${allocations.length} Encarte(s)`
+            }
+          </span>
         </Button>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { FolderDetails } from './folder-details';
+import type { Template } from '@insertflow/lib';
 
 interface Props {
   params: { id: string };
@@ -59,8 +60,8 @@ export default async function FolderPage({ params }: Props) {
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <FolderDetails 
           folder={folder} 
-          templates={folder.templates}
-          generationJobs={generationJobs}
+          templates={folder.templates as unknown as Template[]}
+          generationJobs={generationJobs as any}
         />
       </main>
     </div>

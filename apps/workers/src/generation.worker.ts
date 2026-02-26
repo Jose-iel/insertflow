@@ -3,6 +3,7 @@ import { redis, logger } from '@insertflow/lib';
 import { GenerationService } from './services/generation-service';
 
 interface GenerationJobData {
+  jobId: string;
   orgId: string;
   userId: string;
   folderId: string;

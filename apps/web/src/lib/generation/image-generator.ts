@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { getStorage, logger } from '@insertflow/lib';
 
 export class ImageGenerator {
-  private browser: puppeteer.Browser | null = null;
+  private browser: import('puppeteer').Browser | null = null;
 
   async initialize() {
     if (!this.browser) {

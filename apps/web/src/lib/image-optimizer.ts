@@ -24,11 +24,11 @@ export async function optimizeImage(
   const originalPath = `${basePath}/original.${originalFormat}`;
   await storage.upload(originalBuffer, originalPath, `image/${originalFormat}`);
 
-  // 2. Create optimized version (WebP, max 2000x2000)
+  // 2. Create optimized version (800x900 com fundo branco)
   const optimizedBuffer = await sharp(originalBuffer)
-    .resize(2000, 2000, {
-      fit: 'inside',
-      withoutEnlargement: true,
+    .resize(800, 900, {
+      fit: 'contain',
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
     })
     .webp({ quality: 85 })
     .toBuffer();

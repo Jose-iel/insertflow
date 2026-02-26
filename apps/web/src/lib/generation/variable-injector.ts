@@ -13,15 +13,28 @@ interface GlobalData {
   header?: string;
 }
 
+interface CustomValues {
+  [varName: string]: string;
+}
+
+interface HighlightMapping {
+  highlightProductIds: string[];
+  normalProductIds: string[];
+}
+
 export class VariableInjector {
   inject(
     templateData: TemplateData,
     products: Product[],
-    globalData: GlobalData = {}
+    globalData: GlobalData = {},
+    customValues: CustomValues = {},
+    highlightMapping?: HighlightMapping
   ): TemplateData {
     const injected: TemplateData = {
       background: templateData.background,
-      elements: templateData.elements.map((element) => this.injectElement(element, products, globalData)),
+      elements: templateData.elements.map((element) => 
+        this.injectElement(element, products, globalData, customValues, highlightMapping)
+      ),
     };
 
     return injected;
@@ -30,7 +43,9 @@ export class VariableInjector {
   private injectElement(
     element: TemplateElement,
     products: Product[],
-    globalData: GlobalData
+    globalData: GlobalData,
+    customValues: CustomValues,
+    highlightMapping?: HighlightMapping
   ): TemplateElement {
     const injected = { ...element };
 
@@ -54,17 +69,33 @@ export class VariableInjector {
         content = content.replace(/{{header}}/g, globalData.header);
       }
 
+      // Substituir variáveis customizadas
+      Object.entries(customValues).forEach(([varName, value]) => {
+        const regex = new RegExp(`{{${varName}}}`, 'g');
+        content = content.replace(regex, value || '');
+      });
+
       (injected as any).content = content;
     }
 
     // Image elements
     if (element.type === 'image' && element.variable) {
+      // Variáveis padrão de produtos
       products.forEach((product, index) => {
         const n = index + 1;
         if (element.variable === `{{imagem_produto_${n}}}`) {
           (injected as any).src = product.imagePath || null;
         }
       });
+
+      // Variáveis customizadas de imagem
+      const match = element.variable.match(/\{\{([a-zA-Z0-9_]+)\}\}/);
+      if (match) {
+        const varName = match[1];
+        if (customValues[varName]) {
+          (injected as any).src = customValues[varName];
+        }
+      }
     }
 
     return injected;
