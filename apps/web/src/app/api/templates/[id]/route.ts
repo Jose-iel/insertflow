@@ -11,9 +11,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const template = await db.template.update({
       where: { id: params.id },
       data: {
-        name: body.name,
-        productSlots: body.productSlots,
-        data: body.data,
+        ...(body.name !== undefined && { name: body.name }),
+        ...(body.productSlots !== undefined && { productSlots: body.productSlots }),
+        ...(body.data !== undefined && { data: body.data }),
+        ...(body.highlightSlots !== undefined && { highlightSlots: body.highlightSlots }),
       },
     });
 

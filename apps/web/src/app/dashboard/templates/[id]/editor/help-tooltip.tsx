@@ -63,10 +63,48 @@ export function HelpTooltip() {
               <section>
                 <h3 className="font-semibold text-blue-600 mb-2">🖼️ Variáveis de Imagem</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  Para elementos de imagem, use o campo "Variável" no painel de propriedades:
+                  Para elementos de imagem, use o campo "Variável de Imagem" no painel de propriedades:
                 </p>
-                <div className="bg-gray-50 rounded p-3 text-sm">
-                  <code className="bg-green-100 px-1 rounded">{'{{imagem_produto_N}}'}</code> → Imagem do produto N
+                <div className="bg-gray-50 rounded p-3 text-sm space-y-1">
+                  <div><code className="bg-green-100 px-1 rounded">{'{{imagem_produto_N}}'}</code> → Imagem do produto N</div>
+                  <div><code className="bg-green-100 px-1 rounded">{'{{imagem_destaque}}'}</code> → Imagem customizada</div>
+                  <div><code className="bg-green-100 px-1 rounded">{'{{logo_marca}}'}</code> → Logo customizada</div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Você pode usar variáveis padrão (imagem_produto_1, imagem_produto_2...) ou criar suas próprias 
+                  variáveis customizadas seguindo o padrão <code>{'{{nome_variavel}}'}</code>
+                </p>
+              </section>
+
+              {/* Grupos e Destaques */}
+              <section>
+                <h3 className="font-semibold text-blue-600 mb-2">👥 Grupos e Produtos Destaque</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  Você pode agrupar elementos (imagem + texto + preço) e marcá-los como <strong>destaque</strong> 
+                  para produtos em evidência:
+                </p>
+                <div className="bg-gray-50 rounded p-3 text-sm space-y-2">
+                  <div>
+                    <strong>Como criar um grupo:</strong>
+                    <ol className="list-decimal list-inside ml-2 mt-1 space-y-1">
+                      <li>Selecione 2 ou mais elementos (Shift+Click)</li>
+                      <li>Clique em "Criar Grupo" no painel de propriedades</li>
+                      <li>Marque "Marcar como Destaque" se for um produto em evidência</li>
+                    </ol>
+                  </div>
+                  <div>
+                    <strong>Visual no canvas:</strong>
+                    <ul className="list-disc list-inside ml-2 mt-1">
+                      <li>Grupos normais: borda azul tracejada</li>
+                      <li>Grupos destaque: borda laranja tracejada</li>
+                    </ul>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 rounded p-2 mt-2">
+                    <p className="text-xs text-amber-800">
+                      <strong>💡 Dica:</strong> Na geração de encartes, você poderá escolher quais produtos 
+                      vão nas posições de destaque!
+                    </p>
+                  </div>
                 </div>
               </section>
 
@@ -95,9 +133,12 @@ export function HelpTooltip() {
                 <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
                   <li>Use os botões de variáveis abaixo do campo de texto para inserir rapidamente</li>
                   <li>Você pode combinar texto fixo com variáveis: "Apenas R$ {'{{preco_produto_1}}'}"</li>
+                  <li>Variáveis customizadas permitem campos livres como {'{{texto_promocao}}'}</li>
+                  <li>Agrupe elementos relacionados (imagem + nome + preço) para melhor organização</li>
+                  <li>Marque grupos como destaque para produtos em evidência na geração</li>
                   <li>As réguas nas laterais ajudam no posicionamento preciso</li>
-                  <li>Clique em um elemento para ver suas propriedades no painel direito</li>
-                  <li>Use o painel de camadas para reordenar elementos</li>
+                  <li>Use o painel de camadas para reordenar elementos e visualizar grupos</li>
+                  <li>Shift+Click para selecionar múltiplos elementos</li>
                 </ul>
               </section>
 

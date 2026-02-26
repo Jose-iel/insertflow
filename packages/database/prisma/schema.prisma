@@ -69,17 +69,18 @@ model Folder {
 }
 
 model Template {
-  id           String   @id @default(cuid())
-  name         String
-  orgId        String
-  folderId     String?
-  format       String
-  width        Int
-  height       Int
-  productSlots Int
-  data         Json
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  orgId          String
+  folderId       String?
+  format         String
+  width          Int
+  height         Int
+  productSlots   Int
+  highlightSlots Int      @default(0)
+  data           Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   organization     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   folder           Folder?      @relation(fields: [folderId], references: [id], onDelete: SetNull)

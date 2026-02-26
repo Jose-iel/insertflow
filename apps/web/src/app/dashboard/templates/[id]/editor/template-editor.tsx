@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import type { TemplateElement, TextElement, ImageElement, RectElement, CircleElement, TriangleElement, LineElement, StarElement, TemplateBackground } from '@insertflow/lib/template-types';
+import type { TemplateElement, TextElement, ImageElement, RectElement, CircleElement, TriangleElement, LineElement, StarElement, TemplateBackground, ElementGroup } from '@insertflow/lib/template-types';
 import { TEMPLATE_DIMENSIONS } from '@insertflow/lib/template-types';
 
 type ShapeType = 'text' | 'image' | 'rect' | 'circle' | 'triangle' | 'line' | 'star';
@@ -169,6 +169,7 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
     template.data.background || { type: 'color', value: '#ffffff' }
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [groups, setGroups] = useState<ElementGroup[]>(template.data.groups || []);
   const [saving, setSaving] = useState(false);
 
   const dimensions = TEMPLATE_DIMENSIONS[template.format as 'feed' | 'stories'];
@@ -218,7 +219,13 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
 
   function deleteSelectedElements() {
     if (selectedIds.length === 0) return;
+    
     setElements(elements.filter((el) => !selectedIds.includes(el.id)));
+    
+    setGroups(groups.filter(g => 
+      !g.elementIds.some(id => selectedIds.includes(id))
+    ));
+    
     setSelectedIds([]);
   }
 
@@ -308,6 +315,45 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
     setSelectedIds(newIds);
   }
 
+  function createGroup() {
+    if (selectedIds.length < 2) {
+      alert('Selecione pelo menos 2 elementos para criar um grupo');
+      return;
+    }
+
+    const groupId = `group-${Date.now()}`;
+    const newGroup: ElementGroup = {
+      id: groupId,
+      type: 'group',
+      elementIds: [...selectedIds],
+      isHighlight: false,
+      name: `Grupo ${groups.length + 1}`,
+    };
+
+    setGroups([...groups, newGroup]);
+    setSelectedIds([]);
+  }
+
+  function ungroupElements(groupId: string) {
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+
+    setGroups(groups.filter(g => g.id !== groupId));
+    setSelectedIds(group.elementIds);
+  }
+
+  function toggleGroupHighlight(groupId: string) {
+    setGroups(groups.map(g => 
+      g.id === groupId ? { ...g, isHighlight: !g.isHighlight } : g
+    ));
+  }
+
+  function renameGroup(groupId: string, newName: string) {
+    setGroups(groups.map(g => 
+      g.id === groupId ? { ...g, name: newName } : g
+    ));
+  }
+
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Ignore if typing in an input
@@ -387,7 +433,9 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
           data: {
             background,
             elements,
+            groups,
           },
+          highlightSlots: groups.filter(g => g.isHighlight).length,
         }),
       });
 
@@ -405,7 +453,7 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
 
   const selectedElement = selectedIds.length === 1 
     ? elements.find((el) => el.id === selectedIds[0]) 
-    : null;
+    : undefined;
 
   function handleSelectElement(id: string | null, shiftKey: boolean = false) {
     if (id === null) {
@@ -423,6 +471,13 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
     } else {
       setSelectedIds([id]);
     }
+  }
+
+  function handleSelectGroup(groupId: string) {
+    const group = groups.find(g => g.id === groupId);
+    if (!group) return;
+    
+    setSelectedIds(group.elementIds);
   }
 
   return (
@@ -462,6 +517,7 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
           <EditorCanvas
             elements={elements}
             selectedIds={selectedIds}
+            groups={groups}
             dimensions={dimensions}
             scale={scale}
             background={background}
@@ -479,8 +535,14 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
           <PropertiesPanel
             element={selectedElement}
             selectedCount={selectedIds.length}
+            groups={groups}
+            selectedIds={selectedIds}
             onUpdate={(updates: Partial<TemplateElement>) => selectedElement && updateElement(selectedElement.id, updates)}
             onDelete={() => selectedIds.length > 0 && deleteSelectedElements()}
+            onCreateGroup={createGroup}
+            onToggleHighlight={toggleGroupHighlight}
+            onRenameGroup={renameGroup}
+            onUngroup={ungroupElements}
           />
         </div>
 
@@ -488,7 +550,9 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
           <LayersPanel
             elements={elements}
             selectedIds={selectedIds}
+            groups={groups}
             onSelect={handleSelectElement}
+            onSelectGroup={handleSelectGroup}
             onMoveLayer={moveLayer}
             onDelete={deleteElement}
             onDuplicate={duplicateElement}

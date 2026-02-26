@@ -84,6 +84,14 @@ export interface ImageElement extends BaseElement {
   variable: string | null; // {{imagem_produto_1}} ou null
 }
 
+export interface ElementGroup {
+  id: string;
+  type: 'group';
+  elementIds: string[]; // IDs dos elementos que compõem o grupo
+  isHighlight: boolean; // Se é um grupo destaque
+  name: string; // Nome do grupo (ex: "Produto Destaque 1")
+}
+
 // Propriedades comuns de formas
 export interface ShapeStyles {
   fill: string;
@@ -132,6 +140,7 @@ export type TemplateElement =
 export interface TemplateData {
   background: TemplateBackground;
   elements: TemplateElement[];
+  groups?: ElementGroup[]; // Opcional para compatibilidade retroativa
 }
 
 export interface Template extends TemplateMetadata {
@@ -145,3 +154,9 @@ export const TEMPLATE_DIMENSIONS = {
   feed: { width: 1080, height: 1440 }, // 3:4
   stories: { width: 1080, height: 1920 }, // 9:16
 } as const;
+
+// Helper para calcular highlightSlots
+export function calculateHighlightSlots(data: TemplateData): number {
+  if (!data.groups) return 0;
+  return data.groups.filter(g => g.isHighlight).length;
+}

@@ -1,29 +1,118 @@
 'use client';
 
-import { TemplateElement, AVAILABLE_FONTS, FONT_WEIGHTS, FontWeight } from '@insertflow/lib/template-types';
+import { TemplateElement, AVAILABLE_FONTS, FONT_WEIGHTS, FontWeight, ElementGroup } from '@insertflow/lib/template-types';
 import { Button } from '@insertflow/ui';
 import { Trash2 } from 'lucide-react';
 
 interface PropertiesPanelProps {
   element: TemplateElement | undefined;
   selectedCount?: number;
+  groups: ElementGroup[];
+  selectedIds: string[];
   onUpdate: (updates: Partial<TemplateElement>) => void;
   onDelete: () => void;
+  onCreateGroup: () => void;
+  onToggleHighlight: (groupId: string) => void;
+  onRenameGroup: (groupId: string, name: string) => void;
+  onUngroup: (groupId: string) => void;
 }
 
-export function PropertiesPanel({ element, selectedCount = 0, onUpdate, onDelete }: PropertiesPanelProps) {
-  if (!element) {
-    if (selectedCount > 1) {
-      return (
-        <div className="p-4 space-y-4">
-          <div className="text-center text-gray-600">
-            <p className="font-medium">{selectedCount} elementos selecionados</p>
-            <p className="text-sm mt-2">Use Ctrl+C para copiar, Ctrl+D para duplicar</p>
+export function PropertiesPanel({ 
+  element, 
+  selectedCount = 0, 
+  groups,
+  selectedIds,
+  onUpdate, 
+  onDelete,
+  onCreateGroup,
+  onToggleHighlight,
+  onRenameGroup,
+  onUngroup,
+}: PropertiesPanelProps) {
+  const selectedGroup = groups.find(g => 
+    selectedIds.length > 0 && selectedIds.every(id => g.elementIds.includes(id)) && selectedIds.length === g.elementIds.length
+  );
+
+  if (selectedGroup) {
+    return (
+      <div className="p-4">
+        <h3 className="font-semibold mb-4">Grupo: {selectedGroup.name}</h3>
+        
+        <div className="space-y-3">
+          <div>
+            <label className="text-sm font-medium">Nome do Grupo</label>
+            <input
+              type="text"
+              value={selectedGroup.name}
+              onChange={(e) => onRenameGroup(selectedGroup.id, e.target.value)}
+              className="w-full rounded border px-2 py-1.5 text-sm bg-white mt-1"
+            />
           </div>
-          <Button variant="destructive" size="sm" onClick={onDelete} className="w-full">
-            <Trash2 className="h-4 w-4 mr-2" />
-            Excluir selecionados
+          
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="highlight-checkbox"
+              checked={selectedGroup.isHighlight}
+              onChange={() => onToggleHighlight(selectedGroup.id)}
+              className="rounded"
+            />
+            <label htmlFor="highlight-checkbox" className="text-sm font-medium">
+              Marcar como Destaque
+            </label>
+          </div>
+          
+          {selectedGroup.isHighlight && (
+            <p className="text-xs text-green-600">
+              ✓ Este grupo será usado para produtos em destaque na geração
+            </p>
+          )}
+          
+          <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+            <p><strong>Elementos:</strong> {selectedGroup.elementIds.length}</p>
+            <p><strong>IDs:</strong> {selectedGroup.elementIds.join(', ')}</p>
+          </div>
+          
+          <Button
+            onClick={() => onUngroup(selectedGroup.id)}
+            variant="outline"
+            className="w-full"
+          >
+            Desagrupar
           </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!element) {
+    if (selectedCount >= 2) {
+      return (
+        <div className="p-4">
+          <h3 className="font-semibold mb-4">Múltiplos Elementos ({selectedCount})</h3>
+          
+          <div className="space-y-3">
+            <Button
+              onClick={onCreateGroup}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Criar Grupo
+            </Button>
+            
+            <p className="text-xs text-gray-500">
+              Agrupe elementos para marcá-los como destaque na geração
+            </p>
+          </div>
+          
+          <div className="border-t mt-4 pt-4">
+            <Button
+              onClick={onDelete}
+              variant="destructive"
+              className="w-full"
+            >
+              Excluir Selecionados
+            </Button>
+          </div>
         </div>
       );
     }
@@ -412,32 +501,53 @@ export function PropertiesPanel({ element, selectedCount = 0, onUpdate, onDelete
       {/* Image specific */}
       {element.type === 'image' && (
         <div className="space-y-2">
-          <label className="text-sm font-medium">Variável de Imagem do Produto</label>
-          <select
+          <label className="text-sm font-medium">Variável de Imagem</label>
+          <input
+            type="text"
             value={element.variable || ''}
-            onChange={(e) => onUpdate({ variable: e.target.value || null })}
+            onChange={(e) => {
+              const value = e.target.value.trim();
+              onUpdate({ variable: value || null });
+            }}
+            placeholder="Ex: {{imagem_produto_1}} ou {{imagem_destaque}}"
             className="w-full rounded border px-2 py-1.5 text-sm bg-white"
-          >
-            <option value="">Imagem fixa (sem variável)</option>
-            <option value="{{imagem_produto_1}}">Imagem Produto 1</option>
-            <option value="{{imagem_produto_2}}">Imagem Produto 2</option>
-            <option value="{{imagem_produto_3}}">Imagem Produto 3</option>
-            <option value="{{imagem_produto_4}}">Imagem Produto 4</option>
-            <option value="{{imagem_produto_5}}">Imagem Produto 5</option>
-            <option value="{{imagem_produto_6}}">Imagem Produto 6</option>
-            <option value="{{imagem_produto_7}}">Imagem Produto 7</option>
-            <option value="{{imagem_produto_8}}">Imagem Produto 8</option>
-          </select>
-          {element.variable && (
+          />
+          
+          {/* Validação de formato */}
+          {element.variable && !element.variable.match(/^\{\{[a-zA-Z0-9_]+\}\}$/) && (
+            <p className="text-xs text-red-600">
+              ⚠️ Formato inválido. Use: {'{{nome_variavel}}'}
+            </p>
+          )}
+          
+          {/* Mensagens de ajuda */}
+          {element.variable && element.variable.match(/^\{\{[a-zA-Z0-9_]+\}\}$/) && (
             <p className="text-xs text-green-600">
-              ✓ Esta imagem será substituída pela foto do produto na geração
+              ✓ Esta imagem será substituída na geração
             </p>
           )}
-          {!element.variable && element.src && (
+          
+          {!element.variable && (
             <p className="text-xs text-gray-500">
-              Usando imagem fixa: {element.src.split('/').pop()}
+              Deixe vazio para imagem fixa ou use variável customizada
             </p>
           )}
+          
+          {/* Sugestões comuns */}
+          <div className="text-xs text-gray-600">
+            <p className="font-medium mb-1">Sugestões:</p>
+            <div className="flex flex-wrap gap-1">
+              {['{{imagem_produto_1}}', '{{imagem_produto_2}}', '{{imagem_destaque}}', '{{logo_marca}}'].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => onUpdate({ variable: suggestion })}
+                  className="px-2 py-0.5 bg-gray-100 hover:bg-gray-200 rounded text-xs"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
