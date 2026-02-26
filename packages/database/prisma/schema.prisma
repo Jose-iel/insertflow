@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTENTICAÇÃO E MULTI-TENANCY
+// ============================================
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  folders          Folder[]
+  templates        Template[]
+  products         Product[]
+  images           Image[]
+  generationJobs   GenerationJob[]
+
+  @@index([slug])
+  @@index([active])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String
+  password      String
+  role          String    @default("user")
+  orgId         String?
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  organization  Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  generationJobs GenerationJob[]
+
+  @@index([orgId])
+  @@index([email])
+  @@index([role])
+}
+
+// ============================================
+// TEMPLATES E PASTAS
+// ============================================
+
+model Folder {
+  id        String   @id @default(cuid())
+  name      String
+  orgId     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  templates    Template[]
+  generationJobs GenerationJob[]
+
+  @@index([orgId])
+  @@index([name])
+}
+
+model Template {
+  id           String   @id @default(cuid())
+  name         String
+  orgId        String
+  folderId     String?
+  format       String
+  width        Int
+  height       Int
+  productSlots Int
+  data         Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  organization     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  folder           Folder?      @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  generatedEncartes GeneratedEncarte[]
+
+  @@index([orgId])
+  @@index([folderId])
+  @@index([format])
+  @@index([productSlots])
+}
+
+// ============================================
+// PRODUTOS
+// ============================================
+
+model Product {
+  id             String   @id @default(cuid())
+  orgId          String
+  name           String
+  normalizedName String
+  price          Decimal  @db.Decimal(10, 2)
+  processed      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  images       Image[]
+
+  @@index([orgId])
+  @@index([normalizedName])
+  @@index([processed])
+}
+
+// ============================================
+// IMAGENS
+// ============================================
+
+model Image {
+  id             String   @id @default(cuid())
+  orgId          String
+  productId      String?
+  originalName   String
+  normalizedName String
+  format         String
+  size           Int
+  width          Int
+  height         Int
+  paths          Json
+  urls           Json
+  matched        Boolean  @default(false)
+  matchMethod    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  product      Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([productId])
+  @@index([normalizedName])
+  @@index([matched])
+}
+
+// ============================================
+// GERAÇÃO DE ENCARTES
+// ============================================
+
+model GenerationJob {
+  id          String   @id @default(cuid())
+  orgId       String
+  userId      String
+  folderId    String
+  format      String
+  status      String   @default("pending")
+  progress    Int      @default(0)
+  error       String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  completedAt DateTime?
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  folder       Folder       @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  encartes     GeneratedEncarte[]
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([folderId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model GeneratedEncarte {
+  id         String   @id @default(cuid())
+  jobId      String
+  templateId String
+  filePath   String
+  fileUrl    String
+  products   Json
+  createdAt  DateTime @default(now())
+
+  job      GenerationJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  template Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([templateId])
+  @@index([createdAt])
+}
+
+// ============================================
+// CACHE DE MATCH IA (opcional, pode usar Redis)
+// ============================================
+
+model ImageMatchCache {
+  id             String   @id @default(cuid())
+  orgId          String
+  imageName      String
+  normalizedName String
+  productId      String?
+  confidence     String
+  method         String
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@unique([orgId, normalizedName])
+  @@index([orgId])
+  @@index([expiresAt])
+}
