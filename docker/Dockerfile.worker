@@ -7,15 +7,15 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 # Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
 COPY turbo.json ./
-COPY apps/workers/package*.json ./apps/workers/
-COPY packages/config/package*.json ./packages/config/
-COPY packages/database/package*.json ./packages/database/
-COPY packages/lib/package*.json ./packages/lib/
-COPY packages/ui/package*.json ./packages/ui/
+COPY apps/workers/package.json ./apps/workers/
+COPY packages/config/package.json ./packages/config/
+COPY packages/database/package.json ./packages/database/
+COPY packages/lib/package.json ./packages/lib/
+COPY packages/ui/package.json ./packages/ui/
 
-# Install dependencies
+# Install ALL dependencies (npm ci will install all workspace dependencies)
 RUN npm ci
 
 # Debug: Check if puppeteer was installed in builder
