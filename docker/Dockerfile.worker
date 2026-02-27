@@ -6,26 +6,15 @@ WORKDIR /app
 # Install OpenSSL for Prisma
 RUN apk add --no-cache openssl
 
-# Copy package files
-COPY package.json package-lock.json ./
-COPY turbo.json ./
-COPY apps/workers/package.json ./apps/workers/
-COPY packages/config/package.json ./packages/config/
-COPY packages/database/package.json ./packages/database/
-COPY packages/lib/package.json ./packages/lib/
-COPY packages/ui/package.json ./packages/ui/
+# Copy all source code (needed for npm workspaces to work correctly)
+COPY . .
 
-# Install ALL dependencies (npm ci will install all workspace dependencies)
+# Install ALL dependencies
 RUN npm ci
 
 # Debug: Check if puppeteer was installed in builder
 RUN ls -la node_modules/ | grep -i puppet || echo "No puppet packages found"
-RUN ls -la node_modules/@puppeteer/ 2>/dev/null || echo "@puppeteer directory not found"
 RUN test -d node_modules/puppeteer && echo "puppeteer exists" || echo "puppeteer NOT found"
-RUN find node_modules -name "*puppet*" -type d | head -10 || echo "No puppet directories found"
-
-# Copy source
-COPY . .
 
 # Generate Prisma Client
 RUN npm run db:generate
