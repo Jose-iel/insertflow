@@ -24,6 +24,9 @@ COPY . .
 # Generate Prisma Client
 RUN npm run db:generate
 
+# Build @insertflow/lib first (worker depends on it)
+RUN cd packages/lib && npm run build
+
 # Build workers only
 RUN cd apps/workers && npm run build
 
