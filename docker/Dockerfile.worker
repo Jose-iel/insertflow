@@ -24,11 +24,7 @@ COPY . .
 # Generate Prisma Client
 RUN npm run db:generate
 
-# Build shared packages (worker depends on them)
-RUN cd packages/database && npm run build
-RUN cd packages/lib && npm run build
-
-# Build workers only
+# Build workers (will compile all TypeScript including packages)
 RUN cd apps/workers && npm run build
 
 # Production stage
