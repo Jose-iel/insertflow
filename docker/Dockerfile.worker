@@ -24,6 +24,11 @@ COPY . .
 # Generate Prisma Client
 RUN npm run db:generate
 
+# Build packages and worker
+RUN cd packages/database && npm run build
+RUN cd packages/lib && npm run build
+RUN cd apps/workers && npm run build
+
 # Production stage
 FROM node:20-alpine AS runner
 
