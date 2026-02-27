@@ -63,28 +63,26 @@ Você será redirecionado para a página do projeto.
 1. No projeto, clique em **"Add Service"**
 2. Selecione **"Database"** → **"PostgreSQL"**
 
-### Configurações Básicas:
-- **Service Name**: `postgres`
-- **Image**: Deixe o padrão (`postgres:16` ou similar)
+### Configurações:
+Preencha os campos que aparecem:
 
-### Database Settings:
+- **Service Name**: `postgres` (deixe como está)
 - **Database Name**: `insertflow`
-- **Username**: `postgres`
-- **Password**: Cole a senha que você gerou (`POSTGRES_PASSWORD`)
-  - Exemplo: `fVkS9yz7St8qtyazOBuoc213/YmlWkaSK3RUMc50j/g=`
+- **Username**: `postgres` (deixe como está)
+- **Password**: Cole a senha que você gerou no Passo 0
+  - Exemplo: `E4Ty2VwFitRLnOXPpzHTl10cDPpTL8QnXT0t4NHvlb0=`
 
-### Volumes (Mounts):
-1. Clique em **"Add Mount"**
-2. Tipo: **Volume**
-3. **Volume Name**: `postgres-data`
-4. **Mount Path**: `/var/lib/postgresql/data`
+**💡 Importante:** 
+- O Easypanel cria o volume automaticamente em `/etc/easypanel/projects/insertflow/postgres/data`
+- Você **NÃO precisa** configurar volumes manualmente para PostgreSQL
 
 ### Deploy:
 - Clique em **"Deploy"** ou **"Create"**
 - Aguarde o PostgreSQL inicializar (30-60 segundos)
-- Verifique os logs para confirmar que está rodando
+- Verifique os logs para confirmar que está rodando (deve aparecer "database system is ready to accept connections")
 
-**✅ Anote:** A URL de conexão será `postgresql://postgres:SENHA@postgres:5432/insertflow`
+**✅ Anote a senha:** Você vai precisar dela para configurar o serviço web
+- URL de conexão: `postgresql://postgres:SUA_SENHA@postgres:5432/insertflow`
 
 ---
 
@@ -93,19 +91,18 @@ Você será redirecionado para a página do projeto.
 1. No projeto, clique em **"Add Service"**
 2. Selecione **"Database"** → **"Redis"**
 
-### Configurações Básicas:
-- **Service Name**: `redis`
-- **Image**: Deixe o padrão (`redis:7-alpine` ou similar)
+### Configurações:
+- **Service Name**: `redis` (deixe como está)
+- Não precisa configurar senha (Redis sem autenticação para uso interno)
 
-### Volumes (Mounts):
-1. Clique em **"Add Mount"**
-2. Tipo: **Volume**
-3. **Volume Name**: `redis-data`
-4. **Mount Path**: `/data`
+**💡 Importante:** 
+- O Easypanel cria o volume automaticamente em `/etc/easypanel/projects/insertflow/redis/data`
+- Você **NÃO precisa** configurar volumes manualmente para Redis
 
 ### Deploy:
 - Clique em **"Deploy"** ou **"Create"**
 - Aguarde o Redis inicializar (10-20 segundos)
+- Verifique os logs (deve aparecer "Ready to accept connections")
 
 **✅ Anote:** A URL de conexão será `redis://redis:6379`
 

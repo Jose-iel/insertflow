@@ -7,7 +7,10 @@ WORKDIR /app
 COPY package*.json ./
 COPY turbo.json ./
 COPY apps/workers/package*.json ./apps/workers/
-COPY packages/*/package*.json ./packages/*/
+COPY packages/config/package*.json ./packages/config/
+COPY packages/database/package*.json ./packages/database/
+COPY packages/lib/package*.json ./packages/lib/
+COPY packages/ui/package*.json ./packages/ui/
 
 # Install dependencies
 RUN npm ci
