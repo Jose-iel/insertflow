@@ -50,12 +50,14 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Copy built app and compiled packages (dist only, no src)
 COPY --from=builder /app/apps/workers/dist ./apps/workers/dist
+COPY --from=builder /app/apps/workers/package.json ./apps/workers/
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/packages/database/package.json ./packages/database/
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
 COPY --from=builder /app/packages/lib/dist ./packages/lib/dist
 COPY --from=builder /app/packages/lib/package.json ./packages/lib/
+COPY --from=builder /app/package.json ./
 
 # Create uploads directory
 RUN mkdir -p /app/uploads
