@@ -3,6 +3,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl1.1-compat
+
 # Copy package files
 COPY package*.json ./
 COPY turbo.json ./
@@ -31,8 +34,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install Puppeteer dependencies
+# Install runtime dependencies
 RUN apk add --no-cache \
+    openssl1.1-compat \
     chromium \
     nss \
     freetype \
@@ -42,17 +46,13 @@ RUN apk add --no-cache \
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Copy built app
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/apps/web/.next ./apps/web/.next
-COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
+# Copy standalone build
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 
 # Create uploads directory
 RUN mkdir -p /app/uploads
 
 EXPOSE 3000
 
-WORKDIR /app/apps/web
-
-CMD ["node", "../../node_modules/next/dist/bin/next", "start"]
+CMD ["node", "apps/web/server.js"]
