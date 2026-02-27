@@ -48,14 +48,12 @@ RUN apk add --no-cache \
 
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Copy built app and packages (both src and dist)
+# Copy built app and compiled packages (dist only, no src)
 COPY --from=builder /app/apps/workers/dist ./apps/workers/dist
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/packages/database/src ./packages/database/src
 COPY --from=builder /app/packages/database/dist ./packages/database/dist
 COPY --from=builder /app/packages/database/package.json ./packages/database/
 COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
-COPY --from=builder /app/packages/lib/src ./packages/lib/src
 COPY --from=builder /app/packages/lib/dist ./packages/lib/dist
 COPY --from=builder /app/packages/lib/package.json ./packages/lib/
 
