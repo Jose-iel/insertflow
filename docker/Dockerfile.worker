@@ -18,6 +18,10 @@ COPY packages/ui/package*.json ./packages/ui/
 # Install dependencies
 RUN npm ci
 
+# Debug: Check if puppeteer was installed in builder
+RUN ls -la node_modules/ | grep puppet || echo "Puppeteer not found in builder node_modules"
+RUN test -d node_modules/puppeteer && echo "Puppeteer exists in builder" || echo "Puppeteer NOT in builder"
+
 # Copy source
 COPY . .
 
