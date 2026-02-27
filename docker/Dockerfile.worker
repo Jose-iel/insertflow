@@ -59,6 +59,10 @@ COPY --from=builder /app/packages/lib/dist ./packages/lib/dist
 COPY --from=builder /app/packages/lib/package.json ./packages/lib/
 COPY --from=builder /app/package.json ./
 
+# Debug: Check if puppeteer exists
+RUN ls -la node_modules/ | grep puppet || echo "Puppeteer not found in node_modules"
+RUN test -d node_modules/puppeteer && echo "Puppeteer directory exists" || echo "Puppeteer directory NOT found"
+
 # Create uploads directory
 RUN mkdir -p /app/uploads
 
