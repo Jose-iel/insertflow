@@ -2,15 +2,25 @@
   "name": "@insertflow/lib",
   "version": "0.1.0",
   "private": true,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./template-types": "./src/template-types.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./template-types": {
+      "types": "./dist/template-types.d.ts",
+      "import": "./dist/template-types.js",
+      "require": "./dist/template-types.js",
+      "default": "./dist/template-types.js"
+    }
   },
   "typesVersions": {
     "*": {
-      "template-types": ["./src/template-types.ts"]
+      "template-types": ["./dist/template-types.d.ts"]
     }
   },
   "scripts": {
