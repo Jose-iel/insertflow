@@ -6,7 +6,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY turbo.json ./
-COPY apps/web/package*.json ./apps/web/
+COPY apps/workers/package*.json ./apps/workers/
 COPY packages/*/package*.json ./packages/*/
 
 # Install dependencies
@@ -18,8 +18,8 @@ COPY . .
 # Generate Prisma Client
 RUN npm run db:generate
 
-# Build
-RUN npm run build --filter=@insertflow/web
+# Build workers
+RUN npm run build --filter=@insertflow/workers
 
 # Production stage
 FROM node:20-alpine AS runner
@@ -40,14 +40,11 @@ RUN apk add --no-cache \
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Copy built app
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/apps/workers/dist ./apps/workers/dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages ./packages
 
 # Create uploads directory
 RUN mkdir -p /app/uploads
 
-EXPOSE 3000
-
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "apps/workers/dist/index.js"]

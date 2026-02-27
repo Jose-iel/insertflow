@@ -31,6 +31,54 @@ services:
       timeout: 5s
       retries: 5
 
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    container_name: insertflow-web
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/insertflow
+      REDIS_URL: redis://redis:6379
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: dev-secret-change-in-prod
+      STORAGE_TYPE: local
+      STORAGE_PATH: /app/uploads
+      NODE_ENV: production
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:3000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: insertflow-worker
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/insertflow
+      REDIS_URL: redis://redis:6379
+      STORAGE_TYPE: local
+      STORAGE_PATH: /app/uploads
+      NODE_ENV: production
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   postgres-data:
   redis-data:
+  uploads:
