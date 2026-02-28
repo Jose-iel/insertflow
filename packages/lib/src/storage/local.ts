@@ -11,9 +11,10 @@ export class LocalStorage implements StorageProvider {
     // Se não definido, usar /Users/josehenrique/Pessoal/insertflow/uploads como fallback de dev
     const storagePath = process.env.STORAGE_PATH || '/Users/josehenrique/Pessoal/insertflow/uploads';
     this.basePath = storagePath;
-    this.baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    this.baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
     
     console.log('[LocalStorage] basePath:', this.basePath);
+    console.log('[LocalStorage] baseUrl:', this.baseUrl);
   }
 
   async upload(file: Buffer, filePath: string, contentType: string): Promise<string> {
