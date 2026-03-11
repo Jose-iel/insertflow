@@ -1,13 +1,11 @@
 import { TemplateData, TemplateElement } from '@insertflow/lib';
 import pino from 'pino';
 import sharp from 'sharp';
+import Konva from 'konva';
+import 'konva/canvas-backend';
+import { createCanvas, Image } from 'canvas';
 
 const logger = pino();
-
-// Importar Konva com canvas backend para Node.js
-require('konva/lib/canvas-backend');
-const Konva = require('konva').default;
-const { createCanvas } = require('canvas');
 
 export class KonvaRenderer {
   async renderToImage(data: TemplateData, width: number, height: number): Promise<Buffer> {
@@ -254,9 +252,7 @@ export class KonvaRenderer {
     layer.add(star);
   }
 
-  private async loadImage(src: string): Promise<HTMLImageElement> {
-    const { Image } = require('canvas');
-    
+  private async loadImage(src: string): Promise<any> {
     return new Promise(async (resolve, reject) => {
       const img = new Image();
       
