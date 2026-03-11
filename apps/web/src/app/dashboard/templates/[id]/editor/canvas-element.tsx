@@ -108,10 +108,10 @@ export function CanvasElement({ element, isSelected, onSelect, onChange, onDragM
       shape = (
         <KonvaText
           {...commonProps}
-          text={element.content}
+          text={element.previewText || element.content}
           fontSize={element.fontSize}
           fontFamily={element.fontFamily}
-          fontStyle={element.italic ? 'italic' : 'normal'}
+          fontStyle={`${element.fontWeight} ${element.italic ? 'italic' : 'normal'}`}
           fontVariant="normal"
           fill={element.color}
           align={element.align}
@@ -119,6 +119,7 @@ export function CanvasElement({ element, isSelected, onSelect, onChange, onDragM
           lineHeight={element.lineHeight}
           letterSpacing={element.letterSpacing}
           textDecoration={element.underline ? 'underline' : ''}
+          opacity={element.opacity}
         />
       );
       break;

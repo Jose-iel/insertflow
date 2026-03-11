@@ -34,6 +34,8 @@ function createTextElement(id: string, layer: number): TextElement {
     locked: false,
     opacity: 1,
     content: 'Texto',
+    previewText: 'Texto',
+    variable: null,
     fontSize: 24,
     fontFamily: 'Arial',
     fontWeight: 400,

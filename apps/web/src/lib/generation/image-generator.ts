@@ -45,6 +45,14 @@ export class ImageGenerator {
 
       await page.setContent(html, { waitUntil: 'networkidle0' });
 
+      // Aguardar todas as fontes carregarem
+      await page.evaluate(() => {
+        return document.fonts.ready;
+      });
+
+      // Aguardar um pouco mais para garantir renderização
+      await page.waitForTimeout(500);
+
       // Screenshot
       const screenshot = await page.screenshot({
         type: 'png',

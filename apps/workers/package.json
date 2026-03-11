@@ -11,7 +11,8 @@
     "@insertflow/database": "*",
     "@insertflow/lib": "*",
     "bullmq": "^5.1.0",
-    "puppeteer": "^22.0.0",
+    "canvas": "^3.2.1",
+    "konva": "^10.2.0",
     "sharp": "^0.33.2"
   },
   "devDependencies": {

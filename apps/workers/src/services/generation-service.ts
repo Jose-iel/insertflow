@@ -1,7 +1,7 @@
 import { prisma } from '@insertflow/database';
 import { logger, getStorage, formatPrice, TemplateData, TemplateElement, Template } from '@insertflow/lib';
-import puppeteer from 'puppeteer';
 import sharp from 'sharp';
+import { KonvaRenderer } from './konva-renderer';
 
 // ============================================
 // Product Divider
@@ -92,14 +92,165 @@ class VariableInjector {
     customValues: CustomValues = {},
     highlightMapping?: HighlightMapping
   ): TemplateData {
+    // Reordenar produtos: normais primeiro, depois destaques
+    let reorderedProducts = products;
+    let updatedMapping = highlightMapping;
+    
+    if (highlightMapping && templateData.groups) {
+      const normalProducts = products.filter(p => 
+        highlightMapping.normalProductIds.includes(p.id)
+      );
+      const highlightProducts = products.filter(p => 
+        highlightMapping.highlightProductIds.includes(p.id)
+      );
+      
+      // Descobrir em quais posições (índices de variáveis) os grupos em destaque estão
+      const highlightGroups = templateData.groups.filter(g => g.isHighlight);
+      const highlightPositions: number[] = [];
+      
+      highlightGroups.forEach(group => {
+        // Pegar primeiro elemento do grupo para descobrir qual variável usa
+        const firstElementId = group.elementIds[0];
+        const element = templateData.elements.find(e => e.id === firstElementId);
+        if (element && (element as any).variable) {
+          const match = (element as any).variable.match(/produto_(\d+)/);
+          if (match) {
+            highlightPositions.push(parseInt(match[1]) - 1); // converter para índice 0-based
+          }
+        }
+      });
+      
+      highlightPositions.sort((a, b) => a - b);
+      
+      logger.info({
+        highlightPositions,
+        normalProductsCount: normalProducts.length,
+        highlightProductsCount: highlightProducts.length
+      }, 'Reordering products for injection');
+      
+      // Criar array reordenado
+      reorderedProducts = [];
+      let normalIndex = 0;
+      let highlightIndex = 0;
+      
+      for (let i = 0; i < products.length; i++) {
+        if (highlightPositions.includes(i)) {
+          // Posição de destaque
+          if (highlightIndex < highlightProducts.length) {
+            reorderedProducts.push(highlightProducts[highlightIndex]);
+            highlightIndex++;
+          }
+        } else {
+          // Posição normal
+          if (normalIndex < normalProducts.length) {
+            reorderedProducts.push(normalProducts[normalIndex]);
+            normalIndex++;
+          }
+        }
+      }
+      
+      logger.info({
+        originalOrder: products.map(p => p.name),
+        reorderedOrder: reorderedProducts.map(p => p.name)
+      }, 'Products reordered');
+    }
+    
+    // Criar mapeamento de elementos para produtos baseado em grupos
+    // Agora usando produtos reordenados
+    const elementToProductIndex = this.createElementToProductMapping(
+      templateData,
+      reorderedProducts,
+      updatedMapping
+    );
+
     const injected: TemplateData = {
       background: templateData.background,
       elements: templateData.elements.map((element) => 
-        this.injectElement(element, products, globalData, customValues, highlightMapping)
+        this.injectElement(element, reorderedProducts, globalData, customValues, elementToProductIndex, updatedMapping)
       ),
     };
 
     return injected;
+  }
+
+  private createElementToProductMapping(
+    templateData: TemplateData,
+    products: Product[],
+    highlightMapping?: HighlightMapping
+  ): Record<string, number> {
+    const mapping: Record<string, number> = {};
+    
+    if (!templateData.groups || !highlightMapping) {
+      return mapping;
+    }
+
+    const highlightGroups = templateData.groups.filter(g => g.isHighlight);
+    const normalGroups = templateData.groups.filter(g => !g.isHighlight);
+    
+    const highlightProducts = products.filter(p => 
+      highlightMapping.highlightProductIds.includes(p.id)
+    );
+    const normalProducts = products.filter(p => 
+      highlightMapping.normalProductIds.includes(p.id)
+    );
+
+    logger.info({
+      highlightGroupsCount: highlightGroups.length,
+      normalGroupsCount: normalGroups.length,
+      highlightProductsCount: highlightProducts.length,
+      normalProductsCount: normalProducts.length,
+      allProductsOrder: products.map((p, i) => ({ index: i, id: p.id, name: p.name })),
+      highlightProductIds: highlightMapping.highlightProductIds,
+      highlightProducts: highlightProducts.map((p, i) => ({ index: i, id: p.id, name: p.name })),
+      normalProducts: normalProducts.map((p, i) => ({ index: i, id: p.id, name: p.name }))
+    }, 'Group and product distribution');
+
+    // Mapear elementos de grupos em destaque para produtos em destaque
+    highlightGroups.forEach((group, groupIndex) => {
+      const product = highlightProducts[groupIndex];
+      if (product) {
+        const productIndex = products.findIndex(p => p.id === product.id);
+        logger.info({
+          groupIndex,
+          groupName: group.name,
+          groupElementIds: group.elementIds,
+          productId: product.id,
+          productName: product.name,
+          productIndexInOriginalArray: productIndex
+        }, 'Mapping highlight group to product');
+        
+        group.elementIds.forEach(elementId => {
+          mapping[elementId] = productIndex;
+        });
+      }
+    });
+
+    // Mapear elementos de grupos normais para produtos normais
+    normalGroups.forEach((group, groupIndex) => {
+      const product = normalProducts[groupIndex];
+      if (product) {
+        const productIndex = products.findIndex(p => p.id === product.id);
+        logger.info({
+          groupIndex,
+          groupName: group.name,
+          groupElementIds: group.elementIds,
+          productId: product.id,
+          productName: product.name,
+          productIndexInOriginalArray: productIndex
+        }, 'Mapping normal group to product');
+        
+        group.elementIds.forEach(elementId => {
+          mapping[elementId] = productIndex;
+        });
+      }
+    });
+
+    logger.info({
+      elementToProductIndex: mapping,
+      hasMapping: Object.keys(mapping).length > 0
+    }, 'Element to product mapping created');
+
+    return mapping;
   }
 
   private injectElement(
@@ -107,59 +258,120 @@ class VariableInjector {
     products: Product[],
     globalData: GlobalData,
     customValues: CustomValues,
+    elementToProductIndex: Record<string, number>,
     highlightMapping?: HighlightMapping
   ): TemplateElement {
     const injected = { ...element };
 
     if (element.type === 'text') {
-      let content = element.content;
+      logger.info({
+        elementId: element.id,
+        hasVariable: !!(element as any).variable,
+        variable: (element as any).variable,
+        hasPreviewText: !!(element as any).previewText,
+        previewText: (element as any).previewText,
+        content: element.content
+      }, 'Processing text element');
 
-      products.forEach((product, index) => {
-        const n = index + 1;
-        content = content
-          .replace(new RegExp(`{{nome_produto_${n}}}`, 'g'), product.name)
-          .replace(new RegExp(`{{preco_produto_${n}}}`, 'g'), formatPrice(product.price));
-      });
+      let content: string;
 
-      if (globalData.validUntil) {
-        content = content.replace(/{{data_validade}}/g, globalData.validUntil);
+      // Se há variável configurada e não está vazia, processar substituição
+      if ((element as any).variable && (element as any).variable.trim() !== '') {
+        logger.info({ variable: (element as any).variable }, 'Text has variable, will substitute');
+        content = (element as any).variable;
+
+        // Verificar se este elemento tem mapeamento específico
+        const mappedIndex = elementToProductIndex[element.id];
+        
+        if (mappedIndex !== undefined) {
+          // Elemento mapeado: usar APENAS o produto mapeado
+          const mappedProduct = products[mappedIndex];
+          if (mappedProduct) {
+            logger.info({
+              elementId: element.id,
+              mappedIndex,
+              productName: mappedProduct.name,
+              variable: content
+            }, 'Using mapped product for element');
+            
+            // Substituir TODAS as variáveis de produtos com o produto mapeado
+            content = content
+              .replace(/\{\{nome_produto_\d+\}\}/g, mappedProduct.name)
+              .replace(/\{\{preco_produto_\d+\}\}/g, formatPrice(mappedProduct.price));
+          }
+        } else {
+          // Elemento sem mapeamento: usar todos os produtos em ordem original
+          // A ordem já está correta no array products
+          products.forEach((product, index) => {
+            const n = index + 1;
+            content = content
+              .replace(new RegExp(`{{nome_produto_${n}}}`, 'g'), product.name)
+              .replace(new RegExp(`{{preco_produto_${n}}}`, 'g'), formatPrice(product.price));
+          });
+        }
+
+        // Substituir variáveis globais
+        if (globalData.validUntil) {
+          content = content.replace(/{{data_validade}}/g, globalData.validUntil);
+        }
+        if (globalData.header) {
+          content = content.replace(/{{header}}/g, globalData.header);
+        }
+
+        // Substituir variáveis customizadas
+        Object.entries(customValues).forEach(([varName, value]) => {
+          const regex = new RegExp(`{{${varName}}}`, 'g');
+          content = content.replace(regex, value || '');
+        });
+      } else {
+        // Sem variável configurada - usar previewText diretamente
+        content = (element as any).previewText || element.content;
+        logger.info({ content }, 'Text has no variable, using previewText or content');
       }
-      if (globalData.header) {
-        content = content.replace(/{{header}}/g, globalData.header);
-      }
-
-      // Substituir variáveis customizadas
-      Object.entries(customValues).forEach(([varName, value]) => {
-        const regex = new RegExp(`{{${varName}}}`, 'g');
-        content = content.replace(regex, value || '');
-      });
 
       (injected as any).content = content;
+      logger.info({ finalContent: content }, 'Text element final content after injection');
     }
 
     if (element.type === 'image') {
       logger.info({ 
         elementId: element.id, 
-        variable: element.variable,
-        originalSrc: element.src 
+        variable: (element as any).variable,
+        originalSrc: (element as any).src 
       }, 'Processing image element');
       
-      if (element.variable) {
-        // Variáveis padrão de produtos
-        products.forEach((product, index) => {
-          const n = index + 1;
-          if (element.variable === `{{imagem_produto_${n}}}`) {
-            logger.info({ 
-              variable: element.variable, 
+      if ((element as any).variable) {
+        // Verificar se elemento tem mapeamento específico
+        const mappedIndex = elementToProductIndex[element.id];
+        if (mappedIndex !== undefined) {
+          const product = products[mappedIndex];
+          if (product) {
+            logger.info({
+              elementId: element.id,
+              variable: (element as any).variable,
+              mappedIndex,
               productName: product.name,
-              imagePath: product.imagePath 
-            }, 'Injecting product image');
+              imagePath: product.imagePath
+            }, 'Injecting mapped product image');
             (injected as any).src = product.imagePath || null;
           }
-        });
+        } else {
+          // Variáveis padrão de produtos - usar todos os produtos em ordem original
+          products.forEach((product, index) => {
+            const n = index + 1;
+            if ((element as any).variable === `{{imagem_produto_${n}}}`) {
+              logger.info({ 
+                variable: (element as any).variable, 
+                productName: product.name,
+                imagePath: product.imagePath 
+              }, 'Injecting product image');
+              (injected as any).src = product.imagePath || null;
+            }
+          });
+        }
 
         // Variáveis customizadas de imagem
-        const match = element.variable.match(/\{\{([a-zA-Z0-9_]+)\}\}/);
+        const match = (element as any).variable.match(/\{\{([a-zA-Z0-9_]+)\}\}/);
         if (match) {
           const varName = match[1];
           if (customValues[varName]) {
@@ -173,185 +385,6 @@ class VariableInjector {
   }
 }
 
-// ============================================
-// Template Renderer
-// ============================================
-
-class TemplateRenderer {
-  renderToHTML(data: TemplateData, width: number, height: number): string {
-    const elements = data.elements
-      .sort((a, b) => a.layer - b.layer)
-      .map((el) => this.renderElement(el))
-      .join('\n');
-
-    // Tratar diferentes tipos de background
-    let backgroundStyle = '';
-    if (data.background.type === 'image') {
-      backgroundStyle = `background-image: url('${data.background.value}'); background-size: cover; background-position: center;`;
-    } else if (data.background.type === 'gradient') {
-      backgroundStyle = `background: ${data.background.value};`;
-    } else {
-      backgroundStyle = `background-color: ${data.background.value};`;
-    }
-
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      width: ${width}px;
-      height: ${height}px;
-      position: relative;
-      overflow: hidden;
-      ${backgroundStyle}
-    }
-    .element {
-      position: absolute;
-      transform-origin: top left;
-    }
-    .text {
-      white-space: pre-wrap;
-      word-wrap: break-word;
-    }
-    .image {
-      object-fit: cover;
-    }
-  </style>
-</head>
-<body>
-  ${elements}
-</body>
-</html>
-    `;
-  }
-
-  private renderElement(element: TemplateElement): string {
-    const baseStyle = `
-      left: ${element.x}px;
-      top: ${element.y}px;
-      width: ${element.width}px;
-      height: ${element.height}px;
-      transform: rotate(${element.rotation}deg);
-    `;
-
-    switch (element.type) {
-      case 'text':
-        return `
-          <div class="element text" style="${baseStyle}
-            font-size: ${element.fontSize}px;
-            font-family: ${element.fontFamily};
-            color: ${element.color};
-            font-weight: ${element.fontWeight};
-            font-style: ${element.italic ? 'italic' : 'normal'};
-            text-align: ${element.align};
-          ">
-            ${this.escapeHTML(element.content)}
-          </div>
-        `;
-
-      case 'image':
-        if (!element.src) return '';
-        return `
-          <img class="element image" src="${element.src}" style="${baseStyle}" />
-        `;
-
-      case 'rect':
-        return `
-          <div class="element" style="${baseStyle}
-            background: ${element.fill};
-            border: ${element.strokeWidth}px solid ${element.stroke};
-            border-radius: ${element.cornerRadius}px;
-          "></div>
-        `;
-
-      case 'circle':
-        return `
-          <div class="element" style="${baseStyle}
-            background: ${element.fill};
-            border: ${element.strokeWidth}px solid ${element.stroke};
-            border-radius: 50%;
-          "></div>
-        `;
-
-      default:
-        return '';
-    }
-  }
-
-  private escapeHTML(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;')
-      .replace(/\n/g, '<br>');
-  }
-}
-
-// ============================================
-// Image Generator
-// ============================================
-
-class ImageGenerator {
-  private browser: import('puppeteer').Browser | null = null;
-
-  async initialize() {
-    if (!this.browser) {
-      this.browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
-    }
-  }
-
-  async close() {
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-    }
-  }
-
-  async generatePNG(html: string, width: number, height: number, outputPath: string): Promise<string> {
-    await this.initialize();
-
-    const page = await this.browser!.newPage();
-
-    try {
-      // Usar deviceScaleFactor para alta resolução sem multiplicar viewport
-      const scale = 2; // 2x é suficiente para boa qualidade
-      await page.setViewport({
-        width,
-        height,
-        deviceScaleFactor: scale,
-      });
-
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-
-      const screenshot = await page.screenshot({
-        type: 'png',
-        fullPage: false,
-      });
-
-      const storage = getStorage();
-      // Comprimir PNG para reduzir tamanho
-      const processedBuffer = await sharp(screenshot)
-        .png({ compressionLevel: 6 })
-        .toBuffer();
-
-      await storage.upload(processedBuffer, outputPath, 'image/png');
-
-      logger.info({ outputPath, size: processedBuffer.length }, 'PNG generated');
-
-      return outputPath;
-    } finally {
-      await page.close();
-    }
-  }
-}
 
 // ============================================
 // Generation Service
@@ -379,8 +412,6 @@ interface GenerateEncarteInput {
 export class GenerationService {
   private divider = new ProductDivider();
   private injector = new VariableInjector();
-  private renderer = new TemplateRenderer();
-  private imageGenerator = new ImageGenerator();
 
   async generate(input: GenerateEncarteInput, onProgress?: (progress: number) => void) {
     logger.info({ input }, 'Starting generation');
@@ -520,19 +551,30 @@ export class GenerationService {
           backgroundValue: injectedData.background.value,
         }, 'Template background');
 
-        const html = this.renderer.renderToHTML(
+        // Usar KonvaRenderer para gerar imagem diretamente
+        const konvaRenderer = new KonvaRenderer();
+        const imageBuffer = await konvaRenderer.renderToImage(
           injectedData,
           allocation.template.width,
           allocation.template.height
         );
 
+        logger.info({ 
+          bufferSize: imageBuffer.length,
+          textElementsCount: injectedData.elements.filter(e => e.type === 'text').length,
+          imageElementsCount: injectedData.elements.filter(e => e.type === 'image').length,
+        }, 'Image generated with Konva');
+
+        // Comprimir PNG e fazer upload
+        const storage = getStorage();
         const outputPath = `${basePath}/encarte-${i + 1}.png`;
-        await this.imageGenerator.generatePNG(
-          html,
-          allocation.template.width,
-          allocation.template.height,
-          outputPath
-        );
+        const processedBuffer = await sharp(imageBuffer)
+          .png({ compressionLevel: 6 })
+          .toBuffer();
+        
+        await storage.upload(processedBuffer, outputPath, 'image/png');
+        
+        logger.info({ outputPath, size: processedBuffer.length }, 'PNG uploaded');
 
         const encarte = await prisma.generatedEncarte.create({
           data: {
@@ -605,8 +647,6 @@ export class GenerationService {
       });
 
       throw error;
-    } finally {
-      await this.imageGenerator.close();
     }
   }
 }

@@ -37,15 +37,7 @@ ENV HOSTNAME=0.0.0.0
 
 # Install runtime dependencies
 RUN apk add --no-cache \
-    openssl \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont
-
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    openssl
 
 # Copy standalone build
 COPY --from=builder /app/apps/web/.next/standalone ./

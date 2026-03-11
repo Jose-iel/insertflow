@@ -10,12 +10,15 @@ export class TemplateRenderer {
       .map((el) => this.renderElement(el))
       .join('\n');
 
+    const fontImports = this.getFontImports(data);
+
     return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
+    ${fontImports}
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       width: ${width}px;
@@ -32,9 +35,6 @@ export class TemplateRenderer {
       white-space: pre-wrap;
       word-wrap: break-word;
     }
-    .image {
-      object-fit: cover;
-    }
   </style>
 </head>
 <body>
@@ -42,6 +42,45 @@ export class TemplateRenderer {
 </body>
 </html>
     `;
+  }
+
+  private getFontImports(data: TemplateData): string {
+    const googleFontsMap: Record<string, string> = {
+      'Roboto': 'Roboto:wght@100;200;300;400;500;600;700;800;900',
+      'Open Sans': 'Open+Sans:wght@300;400;500;600;700;800',
+      'Lato': 'Lato:wght@100;300;400;700;900',
+      'Montserrat': 'Montserrat:wght@100;200;300;400;500;600;700;800;900',
+      'Poppins': 'Poppins:wght@100;200;300;400;500;600;700;800;900',
+      'Inter': 'Inter:wght@100;200;300;400;500;600;700;800;900',
+      'Oswald': 'Oswald:wght@200;300;400;500;600;700',
+      'Playfair Display': 'Playfair+Display:wght@400;500;600;700;800;900',
+      'Bebas Neue': 'Bebas+Neue',
+    };
+
+    const systemFonts = ['Arial', 'Helvetica', 'Times New Roman', 'Georgia', 'Verdana', 'Impact'];
+
+    // Coletar fontes únicas usadas no template
+    const usedFonts = new Set<string>();
+    data.elements.forEach((element) => {
+      if (element.type === 'text') {
+        usedFonts.add(element.fontFamily);
+      }
+    });
+
+    // Filtrar apenas fontes do Google Fonts
+    const googleFontsToLoad = Array.from(usedFonts)
+      .filter(font => !systemFonts.includes(font) && googleFontsMap[font]);
+
+    if (googleFontsToLoad.length === 0) {
+      return '';
+    }
+
+    // Gerar imports
+    const imports = googleFontsToLoad
+      .map(font => `@import url('https://fonts.googleapis.com/css2?family=${googleFontsMap[font]}&display=swap');`)
+      .join('\n    ');
+
+    return imports;
   }
 
   private renderElement(element: TemplateElement): string {
@@ -55,6 +94,12 @@ export class TemplateRenderer {
 
     switch (element.type) {
       case 'text':
+        const textToRender = element.previewText || element.content;
+        console.log('[TemplateRenderer] Renderizando texto:', {
+          previewText: element.previewText,
+          content: element.content,
+          textToRender
+        });
         return `
           <div class="element text" style="${baseStyle}
             font-size: ${element.fontSize}px;
@@ -63,15 +108,21 @@ export class TemplateRenderer {
             font-weight: ${element.fontWeight};
             font-style: ${element.italic ? 'italic' : 'normal'};
             text-align: ${element.align};
+            line-height: ${element.lineHeight};
+            letter-spacing: ${element.letterSpacing}px;
+            text-decoration: ${element.underline ? 'underline' : 'none'};
+            opacity: ${element.opacity};
+            overflow: hidden;
+            word-wrap: break-word;
           ">
-            ${this.escapeHTML(element.content)}
+            ${this.escapeHTML(textToRender)}
           </div>
         `;
 
       case 'image':
         if (!element.src) return '';
         return `
-          <img class="element image" src="${element.src}" style="${baseStyle}" />
+          <img class="element image" src="${element.src}" style="${baseStyle}" width="${element.width}" height="${element.height}" />
         `;
 
       case 'rect':

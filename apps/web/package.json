@@ -9,7 +9,8 @@
     "lint": "next lint",
     "clean": "rm -rf .next",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "migrate:text-elements": "tsx ../../scripts/migrate-text-elements.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",

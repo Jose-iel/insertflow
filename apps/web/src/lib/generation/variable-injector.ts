@@ -51,31 +51,49 @@ export class VariableInjector {
 
     // Text elements
     if (element.type === 'text') {
-      let content = element.content;
-
-      // Substituir variáveis de produtos
-      products.forEach((product, index) => {
-        const n = index + 1;
-        content = content
-          .replace(new RegExp(`{{nome_produto_${n}}}`, 'g'), product.name)
-          .replace(new RegExp(`{{preco_produto_${n}}}`, 'g'), formatPrice(product.price));
+      console.log('[VariableInjector] Element:', {
+        previewText: element.previewText,
+        variable: element.variable,
+        content: element.content
       });
 
-      // Substituir variáveis globais
-      if (globalData.validUntil) {
-        content = content.replace(/{{data_validade}}/g, globalData.validUntil);
-      }
-      if (globalData.header) {
-        content = content.replace(/{{header}}/g, globalData.header);
-      }
+      let content: string;
 
-      // Substituir variáveis customizadas
-      Object.entries(customValues).forEach(([varName, value]) => {
-        const regex = new RegExp(`{{${varName}}}`, 'g');
-        content = content.replace(regex, value || '');
-      });
+      // Se há variável configurada e não está vazia, processar substituição
+      if (element.variable && element.variable.trim() !== '') {
+        console.log('[VariableInjector] Com variável - processando:', element.variable);
+        content = element.variable;
+
+        // Substituir variáveis de produtos
+        products.forEach((product, index) => {
+          const n = index + 1;
+          content = content
+            .replace(new RegExp(`{{nome_produto_${n}}}`, 'g'), product.name)
+            .replace(new RegExp(`{{preco_produto_${n}}}`, 'g'), formatPrice(product.price));
+        });
+
+        // Substituir variáveis globais
+        if (globalData.validUntil) {
+          content = content.replace(/{{data_validade}}/g, globalData.validUntil);
+        }
+        if (globalData.header) {
+          content = content.replace(/{{header}}/g, globalData.header);
+        }
+
+        // Substituir variáveis customizadas
+        Object.entries(customValues).forEach(([varName, value]) => {
+          const regex = new RegExp(`{{${varName}}}`, 'g');
+          content = content.replace(regex, value || '');
+        });
+      } else {
+        // Sem variável configurada - usar previewText diretamente
+        content = element.previewText || element.content;
+        console.log('[VariableInjector] Sem variável - usando previewText:', content);
+      }
 
       (injected as any).content = content;
+      (injected as any).previewText = content;
+      console.log('[VariableInjector] Resultado final:', content);
     }
 
     // Image elements

@@ -35,7 +35,9 @@ export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900;
 
 export interface TextElement extends BaseElement {
   type: 'text';
-  content: string; // pode conter variáveis: {{nome_produto_1}}
+  content: string; // DEPRECATED: manter para retrocompatibilidade
+  previewText?: string; // texto que aparece no canvas
+  variable?: string | null; // variável configurada (ex: {{preco_produto_1}}) ou null
   fontSize: number;
   fontFamily: string;
   fontWeight: FontWeight;

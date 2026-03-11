@@ -186,40 +186,53 @@ export function PropertiesPanel({
       {/* Text specific */}
       {element.type === 'text' && (
         <>
+          {/* Texto de Preview */}
           <div>
-            <label className="text-sm font-medium">Texto</label>
+            <label className="text-sm font-medium">Texto de Preview</label>
             <textarea
-              id="text-content"
-              value={element.content}
-              onChange={(e) => onUpdate({ content: e.target.value })}
-              className="w-full rounded border px-2 py-1 text-sm"
-              rows={3}
-              placeholder="Digite o texto ou use variáveis"
+              value={element.previewText || element.content}
+              onChange={(e) => onUpdate({ 
+                previewText: e.target.value,
+                content: e.target.value
+              })}
+              className="w-full rounded border px-2 py-1.5 text-sm min-h-[60px]"
+              placeholder="Texto que aparece no canvas (ex: R$ 99,99)"
             />
-            <div className="mt-1">
-              <label className="text-xs text-gray-500 mb-1 block">Inserir variável:</label>
-              <div className="flex flex-wrap gap-1">
-                {[
-                  { label: 'Nome', value: '{{nome_produto_1}}' },
-                  { label: 'Preço', value: '{{preco_produto_1}}' },
-                  { label: 'Desc.', value: '{{descricao_produto_1}}' },
-                ].map((v) => (
-                  <button
-                    key={v.value}
-                    type="button"
-                    onClick={() => {
-                      const textarea = document.getElementById('text-content') as HTMLTextAreaElement;
-                      const start = textarea?.selectionStart || element.content.length;
-                      const newContent = element.content.slice(0, start) + v.value + element.content.slice(start);
-                      onUpdate({ content: newContent });
-                    }}
-                    className="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                  >
-                    {v.label}
-                  </button>
-                ))}
+            <p className="text-xs text-gray-500 mt-1">
+              Este texto aparece no canvas para você testar o layout visualmente.
+            </p>
+          </div>
+
+          {/* Variável */}
+          <div>
+            <label className="text-sm font-medium">Variável (Opcional)</label>
+            <input
+              type="text"
+              value={element.variable || ''}
+              onChange={(e) => onUpdate({ variable: e.target.value || null })}
+              className="w-full rounded border px-2 py-1.5 text-sm"
+              placeholder="Ex: {{preco_produto_1}}"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Se configurada, esta variável será usada ao gerar o encarte.
+            </p>
+            
+            {/* Sugestões de variáveis */}
+            <details className="mt-2">
+              <summary className="text-xs text-blue-600 cursor-pointer">
+                Ver variáveis disponíveis
+              </summary>
+              <div className="mt-2 p-2 bg-gray-50 rounded text-xs space-y-1">
+                <p className="font-medium">Produtos:</p>
+                <p>{'{{nome_produto_1}}'} até {'{{nome_produto_8}}'}</p>
+                <p>{'{{preco_produto_1}}'} até {'{{preco_produto_8}}'}</p>
+                <p className="font-medium mt-2">Globais:</p>
+                <p>{'{{data_validade}}'}</p>
+                <p>{'{{header}}'}</p>
+                <p className="font-medium mt-2">Customizadas:</p>
+                <p>Qualquer nome: {'{{minha_variavel}}'}</p>
               </div>
-            </div>
+            </details>
           </div>
 
           {/* Fonte */}

@@ -3,18 +3,23 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install OpenSSL for Prisma
-RUN apk add --no-cache openssl
+# Install build dependencies for node-canvas
+RUN apk add --no-cache \
+    openssl \
+    python3 \
+    make \
+    g++ \
+    cairo-dev \
+    jpeg-dev \
+    pango-dev \
+    giflib-dev \
+    pixman-dev
 
 # Copy all source code (needed for npm workspaces to work correctly)
 COPY . .
 
 # Install ALL dependencies
 RUN npm ci
-
-# Debug: Check if puppeteer was installed in builder
-RUN ls -la node_modules/ | grep -i puppet || echo "No puppet packages found"
-RUN test -d node_modules/puppeteer && echo "puppeteer exists" || echo "puppeteer NOT found"
 
 # Generate Prisma Client
 RUN npm run db:generate
@@ -31,17 +36,18 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Install runtime dependencies
+# Install runtime dependencies for node-canvas
 RUN apk add --no-cache \
     openssl \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
-    ca-certificates \
-    ttf-freefont
-
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    cairo \
+    jpeg \
+    pango \
+    giflib \
+    pixman \
+    ttf-freefont \
+    ttf-dejavu \
+    ttf-liberation \
+    fontconfig
 
 # Copy built app and compiled packages (dist only, no src)
 COPY --from=builder /app/apps/workers/dist ./apps/workers/dist
@@ -53,10 +59,6 @@ COPY --from=builder /app/packages/database/prisma ./packages/database/prisma
 COPY --from=builder /app/packages/lib/dist ./packages/lib/dist
 COPY --from=builder /app/packages/lib/package.json ./packages/lib/
 COPY --from=builder /app/package.json ./
-
-# Debug: Check if puppeteer exists
-RUN ls -la node_modules/ | grep puppet || echo "Puppeteer not found in node_modules"
-RUN test -d node_modules/puppeteer && echo "Puppeteer directory exists" || echo "Puppeteer directory NOT found"
 
 # Create uploads directory
 RUN mkdir -p /app/uploads

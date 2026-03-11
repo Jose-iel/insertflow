@@ -110,5 +110,6 @@ Para deploy em produção no Easypanel, siga o guia detalhado:
 
 ### Generation Failures
 - Check worker logs
-- Verify Puppeteer dependencies installed
+- Verify node-canvas dependencies installed (Cairo, Pango)
 - Check storage permissions
+- Verify fonts are available in the container

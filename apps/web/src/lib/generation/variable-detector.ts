@@ -27,7 +27,9 @@ export class VariableDetector {
 
     templateData.elements.forEach((element) => {
       if (element.type === 'text') {
-        const matches = element.content.matchAll(/\{\{([a-zA-Z0-9_]+)\}\}/g);
+        // Procurar no campo 'variable' (novo) ou 'content' (retrocompatibilidade)
+        const textToSearch = (element as any).variable || element.content;
+        const matches = textToSearch.matchAll(/\{\{([a-zA-Z0-9_]+)\}\}/g);
         for (const match of matches) {
           const varName = match[1];
           if (!standardVariables.has(varName) && !variables.has(varName)) {
@@ -41,6 +43,7 @@ export class VariableDetector {
       }
     });
 
+    // Detectar variáveis em elementos de imagem
     templateData.elements.forEach((element) => {
       if (element.type === 'image' && element.variable) {
         const match = element.variable.match(/\{\{([a-zA-Z0-9_]+)\}\}/);
