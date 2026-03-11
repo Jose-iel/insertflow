@@ -5,7 +5,7 @@ import sharp from 'sharp';
 const logger = pino();
 
 // Importar Konva com canvas backend para Node.js
-require('konva/canvas-backend');
+require('konva/lib/canvas-backend');
 const Konva = require('konva').default;
 const { createCanvas } = require('canvas');
 
