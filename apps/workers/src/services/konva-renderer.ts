@@ -269,11 +269,13 @@ export class KonvaRenderer {
         if (src.startsWith('http')) {
           // Fazer fetch da imagem
           const response = await fetch(src);
+          const contentType = response.headers.get('content-type') || '';
           const arrayBuffer = await response.arrayBuffer();
           let buffer: any = Buffer.from(arrayBuffer);
           
           // Converter WebP para PNG usando sharp (canvas não suporta WebP)
-          if (src.includes('.webp')) {
+          if (contentType.includes('webp') || src.includes('.webp')) {
+            logger.info({ src, contentType }, 'Converting WebP to PNG');
             buffer = await sharp(buffer).png().toBuffer();
           }
           
