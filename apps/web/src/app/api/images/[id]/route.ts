@@ -17,13 +17,14 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
       return NextResponse.json({ error: 'Image not found' }, { status: 404 });
     }
 
-    // Delete files from storage
+    // Delete files from storage (ignore errors if files don't exist)
     const paths = image.paths as any;
-    await Promise.all([
-      storage.delete(paths.original),
-      storage.delete(paths.optimized),
-      storage.delete(paths.thumb),
-    ]);
+    const deletePromises = [
+      storage.delete(paths.original).catch((err) => console.warn('Failed to delete original:', err)),
+      storage.delete(paths.optimized).catch((err) => console.warn('Failed to delete optimized:', err)),
+      storage.delete(paths.thumb).catch((err) => console.warn('Failed to delete thumb:', err)),
+    ];
+    await Promise.all(deletePromises);
 
     // Delete from database
     await db.image.delete({
@@ -32,7 +33,11 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to delete image' }, { status: 500 });
+    console.error('Error deleting image:', error);
+    return NextResponse.json({ 
+      error: 'Failed to delete image',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 

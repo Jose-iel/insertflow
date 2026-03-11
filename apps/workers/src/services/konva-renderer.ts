@@ -68,35 +68,48 @@ export class KonvaRenderer {
       layer.add(rect);
     } else if (background.type === 'image') {
       // Carregar imagem de background
-      const image = await this.loadImage(background.value);
-      
-      // Calcular dimensões para cover (manter proporção e cobrir toda área)
-      const imgRatio = image.width / image.height;
-      const canvasRatio = width / height;
-      
-      let renderWidth = width;
-      let renderHeight = height;
-      let x = 0;
-      let y = 0;
-      
-      if (imgRatio > canvasRatio) {
-        // Imagem mais larga que canvas - ajustar pela altura
-        renderWidth = height * imgRatio;
-        x = -(renderWidth - width) / 2;
-      } else {
-        // Imagem mais alta que canvas - ajustar pela largura
-        renderHeight = width / imgRatio;
-        y = -(renderHeight - height) / 2;
+      try {
+        const image = await this.loadImage(background.value);
+        
+        // Calcular dimensões para cover (manter proporção e cobrir toda área)
+        const imgRatio = image.width / image.height;
+        const canvasRatio = width / height;
+        
+        let renderWidth = width;
+        let renderHeight = height;
+        let x = 0;
+        let y = 0;
+        
+        if (imgRatio > canvasRatio) {
+          // Imagem mais larga que canvas - ajustar pela altura
+          renderWidth = height * imgRatio;
+          x = -(renderWidth - width) / 2;
+        } else {
+          // Imagem mais alta que canvas - ajustar pela largura
+          renderHeight = width / imgRatio;
+          y = -(renderHeight - height) / 2;
+        }
+        
+        const konvaImage = new Konva.Image({
+          x,
+          y,
+          width: renderWidth,
+          height: renderHeight,
+          image,
+        });
+        layer.add(konvaImage);
+      } catch (error) {
+        logger.warn({ src: background.value, error }, 'Failed to load background image, using white fallback');
+        // Fallback: usar fundo branco se imagem não carregar
+        const rect = new Konva.Rect({
+          x: 0,
+          y: 0,
+          width,
+          height,
+          fill: '#FFFFFF',
+        });
+        layer.add(rect);
       }
-      
-      const konvaImage = new Konva.Image({
-        x,
-        y,
-        width: renderWidth,
-        height: renderHeight,
-        image,
-      });
-      layer.add(konvaImage);
     } else if (background.type === 'gradient') {
       // Implementar gradiente se necessário
       logger.warn('Gradient background not yet implemented');
@@ -268,15 +281,30 @@ export class KonvaRenderer {
       try {
         if (src.startsWith('http')) {
           // Fazer fetch da imagem
+          logger.info({ src }, 'Fetching image from URL');
           const response = await fetch(src);
-          const contentType = response.headers.get('content-type') || '';
+          
+          const status = response.status;
+          const contentType = response.headers.get('content-type');
+          
+          logger.info({ src, status, contentType }, 'Image fetch response');
+          
+          // Verificar se a resposta é OK (status 200)
+          if (!response.ok) {
+            throw new Error(`HTTP ${status}: Failed to fetch image from ${src}`);
+          }
+          
           const arrayBuffer = await response.arrayBuffer();
           let buffer: any = Buffer.from(arrayBuffer);
           
+          logger.info({ src, bufferSize: buffer.length }, 'Image downloaded');
+          
           // Converter WebP para PNG usando sharp (canvas não suporta WebP)
-          if (contentType.includes('webp') || src.includes('.webp')) {
-            logger.info({ src, contentType }, 'Converting WebP to PNG');
+          // Detectar por extensão da URL
+          if (src.includes('.webp')) {
+            logger.info({ src }, 'Converting WebP to PNG');
             buffer = await sharp(buffer).png().toBuffer();
+            logger.info({ src, convertedSize: buffer.length }, 'WebP converted to PNG');
           }
           
           // Definir src como buffer (isso dispara onload quando completo)

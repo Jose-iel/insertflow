@@ -45,10 +45,19 @@ export function ImageGallery() {
     if (!confirm('Tem certeza que deseja deletar esta imagem?')) return;
 
     try {
-      await fetch(`/api/images/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/images/${id}`, { method: 'DELETE' });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        alert(`Erro ao deletar imagem: ${error.error || 'Erro desconhecido'}`);
+        return;
+      }
+      
+      // Atualizar lista de imagens
       fetchImages();
     } catch (error) {
       console.error('Failed to delete image:', error);
+      alert('Erro ao deletar imagem. Tente novamente.');
     }
   }
 

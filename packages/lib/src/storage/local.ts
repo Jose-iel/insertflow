@@ -38,7 +38,9 @@ export class LocalStorage implements StorageProvider {
   }
 
   getUrl(filePath: string): string {
-    return `${this.baseUrl}/api/files/${filePath}`;
+    // Adicionar timestamp para cache busting (evitar cache do Cloudflare)
+    const timestamp = Date.now();
+    return `${this.baseUrl}/api/files/${filePath}?v=${timestamp}`;
   }
 
   async exists(filePath: string): Promise<boolean> {
