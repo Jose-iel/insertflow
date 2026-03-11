@@ -24,8 +24,8 @@ COPY . .
 # Generate Prisma Client
 RUN npm run db:generate
 
-# Build
-RUN npm run build --filter=@insertflow/web
+# Build (ignore workers since it's a separate service)
+RUN npm run build --filter=@insertflow/web --ignore=@insertflow/workers
 
 # Production stage
 FROM node:20-alpine AS runner
