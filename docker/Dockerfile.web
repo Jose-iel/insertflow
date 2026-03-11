@@ -6,7 +6,7 @@ WORKDIR /app
 # Install OpenSSL for Prisma
 RUN apk add --no-cache openssl
 
-# Copy package files
+# Copy package files (exclude workers since it's a separate service)
 COPY package*.json ./
 COPY turbo.json ./
 COPY apps/web/package*.json ./apps/web/
@@ -18,14 +18,16 @@ COPY packages/ui/package*.json ./packages/ui/
 # Install dependencies
 RUN npm ci
 
-# Copy source
-COPY . .
+# Copy source (exclude workers)
+COPY apps/web ./apps/web
+COPY packages ./packages
+COPY .prettierrc ./.prettierrc
 
 # Generate Prisma Client
 RUN npm run db:generate
 
-# Build (ignore workers since it's a separate service)
-RUN npm run build --filter=@insertflow/web --ignore=@insertflow/workers
+# Build (only web, workers is a separate service)
+RUN npm run build --filter=@insertflow/web
 
 # Production stage
 FROM node:20-alpine AS runner
